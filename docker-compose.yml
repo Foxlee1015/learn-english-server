@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  flask_app:
+    container_name: task_tracker
+    networks:
+      - nginx_network
+    restart: always
+    build: ./
+    volumes:
+      - ./logs:/usr/src/flask_app/logs
+    ports:
+      - "16980:8000"
+    command: gunicorn -c ./gunicorn.conf.py 'app:create_app()'
+    
+networks:
+  nginx_network:
+    external: true    

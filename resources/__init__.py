@@ -1,0 +1,22 @@
+from flask import Blueprint
+from flask_restplus import Api
+import jwt
+
+from .logs import api as logs
+from .sessions import api as sessions
+from .idioms import api as idioms
+from .users import api as users
+
+
+blueprint = Blueprint('api', __name__)
+api = Api(
+    blueprint,
+    title='Learn English API',
+    version='1.0',
+    description=''
+)
+
+api.add_namespace(idioms)
+api.add_namespace(logs)
+api.add_namespace(sessions)
+api.add_namespace(users)
