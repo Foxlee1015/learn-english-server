@@ -6,6 +6,7 @@ import time
 from contextlib import contextmanager
 
 import pymysql
+from flask_pymongo import PyMongo
 from dotenv import load_dotenv
 
 from core import errors
@@ -16,7 +17,10 @@ from core.utils import docker_command, stringify_given_datetime_or_current_datet
 APP_ROOT = os.path.join(os.path.dirname(__file__), '..')   # refers to application_top
 dotenv_path = os.path.join(APP_ROOT, '.env')
 load_dotenv(dotenv_path)
-    
+
+
+mongo = PyMongo()
+mongo_uri = os.getenv('MONGO_DB_URI')
 
 db_host_dev = os.getenv('DB_HOST_DEV')
 db_host = os.getenv('DB_HOST')
