@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 import traceback
+from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
 from core.db import mongo
@@ -36,10 +37,10 @@ def add_idiom(args):
 
 
 parser_create = reqparse.RequestParser()
-parser_create.add_argument('expression', type=str, required=True, location='form', help='Expression')
-parser_create.add_argument('definitions', type=str, location='form', help='Definitions')
-parser_create.add_argument('sentences', type=str, location='form', help='Sentences')
-parser_create.add_argument('level', type=int, location='form', help='Learning level')
+parser_create.add_argument('expression', type=str, required=True, help='Expression')
+parser_create.add_argument('definitions', type=str, help='Definitions')
+parser_create.add_argument('sentences', type=str, help='Sentences')
+parser_create.add_argument('level', type=int, help='Learning level')
 
 
 @api.route('/')
@@ -59,6 +60,8 @@ class Idioms(CustomResource):
     @api.response(409, 'Duplicate idiom')
     def post(self):
         '''Add an idiom'''
+        
+        request.get_json(force=True)
         args = parser_create.parse_args()
         result = add_idiom(args)
         status = 200 if result else 400
