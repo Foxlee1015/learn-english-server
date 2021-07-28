@@ -31,6 +31,7 @@ def add_idiom(args):
     try:
         args['created_time'] = datetime.now()
         mongo.db.idioms.insert_one(args)
+        return True
     except:
         return False
 
@@ -50,7 +51,6 @@ class Idioms(CustomResource):
     def get(self):
         '''List all idioms'''     
         result = get_idioms()
-        print(result)
         status = 200 if result else 203
         return self.send(status=status, result=result)
 
