@@ -30,6 +30,7 @@ def get_idioms():
 def add_idiom(args):
     try:
         args['created_time'] = datetime.now()
+        print(args)
         mongo.db.idioms.insert_one(args)
         return True
     except:
@@ -39,8 +40,8 @@ def add_idiom(args):
 
 parser_create = reqparse.RequestParser()
 parser_create.add_argument('expression', type=str, required=True, help='Expression')
-parser_create.add_argument('definitions', type=str, help='Definitions')
-parser_create.add_argument('sentences', type=str, help='Sentences')
+parser_create.add_argument('definitions', type=str, help='Definitions', action='append')
+parser_create.add_argument('sentences', type=str, help='Sentences', action='append')
 parser_create.add_argument('level', type=int, help='Learning level')
 
 
@@ -61,7 +62,7 @@ class Idioms(CustomResource):
     def post(self):
         '''Add an idiom'''
         
-        request.get_json(force=True)
+        # request.get_json(force=True)
         args = parser_create.parse_args()
         result = add_idiom(args)
         status = 200 if result else 400
