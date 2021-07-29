@@ -55,7 +55,7 @@ parser_create.add_argument('sentences', type=str, help='Sentences', action='appe
 parser_create.add_argument('level', type=int, help='Learning level')
 
 parser_search_verb = reqparse.RequestParser()
-parser_search_verb.add_argument('only_verb', type=bool, location="args")
+parser_search_verb.add_argument('only_verb', type=int, location="args")
 
 parser_search = reqparse.RequestParser()
 parser_search.add_argument('particle', type=str, help='Particle(adverb or preposition', location="args")
@@ -69,7 +69,7 @@ class PhrasalVerbs(CustomResource):
     def get(self):
         '''List all phrasal verbs'''
         args = parser_search_verb.parse_args()
-        if args['only_verb']:
+        if args['only_verb'] == 1:
             result = get_only_verbs()
         else:
             result = get_phrasal_verbs()
