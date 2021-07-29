@@ -14,9 +14,11 @@ api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 def get_only_verbs():
     verbs = set()
     for item in mongo.db.phrasal_verbs.find():
-        verbs.add(item["verb"])
-    print('zxvzvxcv', verbs)
-    return list(verbs)
+        verbs.add(item['verb'])
+    res = []
+    for verb in list(verbs):
+        res.append({'verb':verb})
+    return res
 
 def get_phrasal_verbs(verb=None, particle=None):
     query = {}
