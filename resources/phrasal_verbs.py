@@ -15,12 +15,10 @@ def get_only_verbs():
     verbs = mongo.db.phrasal_verbs.distinct("verb");
     return verbs
 
-def get_phrasal_verbs(verb=None, particle=None):
+def get_phrasal_verbs(verb=None):
     query = {}
     if verb is not None:
         query["verb"] = verb
-    if particle is not None:
-        query["particle"] = particle
 
     phrasal_verbs = []
     for item in mongo.db.phrasal_verbs.find(query):
@@ -33,7 +31,6 @@ def get_phrasal_verbs(verb=None, particle=None):
             
             phrasal_verb[key] = value
         phrasal_verbs.append(phrasal_verb)
-    
     return phrasal_verbs
 
 def upsert_phrasal_verbs(args):
@@ -42,17 +39,42 @@ def upsert_phrasal_verbs(args):
         particle = args.particle
         definitions = args.definitions
         sentences = args.sentences
-
+        level = args.level
+        is_public = args.is_public
+        
         search_query = {"verb": verb}
-        phrasal_verb_data = {
-            "verb": args.verb,
-            particle: {
-                "definitions": definitions,
-                "sentences": sentences
-            }
+        phrasal_verb_data = {}
+
+        # old data
+        if items := mongo.db.phrasal_verbs.find(search_query):
+            for item in items:
+                for key, value in item.items():
+                    phrasal_verb_data[key] = value
+        
+        # new verb
+        if phrasal_verb_data.get("verb") is None:
+            phrasal_verb_data["verb"] = verb
+
+        # first particle
+        if phrasal_verb_data.get("particles") is None:
+            phrasal_verb_data["particles"] = {}
+        phrasal_verb_data["particles"][particle] = {
+            "definitions": definitions,
+            "sentences": sentences,
+            "level": level,
+            "is_public": is_public
         }
+        
         mongo.db.phrasal_verbs.replace_one(search_query, phrasal_verb_data, upsert=True)
 
+        return True
+    except:
+        traceback.print_exc()
+        return False
+
+def delete_phrasal_verbs():
+    try:
+        mongo.db.phrasal_verbs.delete_many({})
         return True
     except:
         traceback.print_exc()
@@ -64,13 +86,14 @@ parser_create.add_argument('particle', type=str, required=True, help='Particle(a
 parser_create.add_argument('definitions', type=str, help='Definitions', action='append')
 parser_create.add_argument('sentences', type=str, help='Sentences', action='append')
 parser_create.add_argument('level', type=int, help='Learning level')
+parser_create.add_argument('is_public', type=int, help='Public')
 
 parser_search_verb = reqparse.RequestParser()
 parser_search_verb.add_argument('only_verb', type=int, location="args")
+parser_search_verb.add_argument('verb', type=str, help='Verb')
 
 parser_search = reqparse.RequestParser()
 parser_search.add_argument('particle', type=str, help='Particle(adverb or preposition', location="args")
-
 
 @api.route('/')
 class PhrasalVerbs(CustomResource):
@@ -83,10 +106,9 @@ class PhrasalVerbs(CustomResource):
         if args['only_verb'] == 1:
             result = get_only_verbs()
         else:
-            result = get_phrasal_verbs()
+            result = get_phrasal_verbs(verb=args["verb"])
         status = 200 if result else 203
         return self.send(status=status, result=result)
-
     
     @api.doc('add a phrasal verb')
     @api.expect(parser_create)
@@ -100,6 +122,14 @@ class PhrasalVerbs(CustomResource):
         
         return self.send(status=status)
 
+    @api.doc('delete a phrasal verb')
+    def delete(self):
+        '''Delete an phrasal verb'''
+        
+        result = delete_phrasal_verbs()
+        status = 200 if result else 400
+        
+        return self.send(status=status)
 
 @api.route('/<string:verb>')
 class PhrasalVerb(CustomResource):
