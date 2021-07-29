@@ -12,13 +12,8 @@ from core.utils import check_if_only_int_numbers_exist, token_required, parse_gi
 api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 
 def get_only_verbs():
-    verbs = set()
-    for item in mongo.db.phrasal_verbs.find():
-        verbs.add(item['verb'])
-    res = []
-    for verb in list(verbs):
-        res.append({'verb':verb})
-    return res
+    verbs = mongo.db.phrasal_verbs.distinct("verb");
+    return verbs
 
 def get_phrasal_verbs(verb=None, particle=None):
     query = {}
@@ -41,12 +36,26 @@ def get_phrasal_verbs(verb=None, particle=None):
     
     return phrasal_verbs
 
-def add_phrasal_verbs(args):
+def upsert_phrasal_verbs(args):
     try:
-        print(args)
-        mongo.db.phrasal_verbs.insert_one(args)
+        verb = args.verb
+        particle = args.particle
+        definitions = args.definitions
+        sentences = args.sentences
+
+        search_query = {"verb": verb}
+        phrasal_verb_data = {
+            "verb": args.verb,
+            particle: {
+                "definitions": definitions,
+                "sentences": sentences
+            }
+        }
+        mongo.db.phrasal_verbs.replace_one(search_query, phrasal_verb_data, upsert=True)
+
         return True
     except:
+        traceback.print_exc()
         return False
 
 parser_create = reqparse.RequestParser()
@@ -86,7 +95,7 @@ class PhrasalVerbs(CustomResource):
         '''Add an phrasal verb'''
         
         args = parser_create.parse_args()
-        result = add_phrasal_verbs(args)
+        result = upsert_phrasal_verbs(args)
         status = 200 if result else 400
         
         return self.send(status=status)
