@@ -46,7 +46,8 @@ def upsert_phrasal_verbs(args):
         phrasal_verb_data = {}
 
         # old data
-        if items := mongo.db.phrasal_verbs.find(search_query):
+        items = mongo.db.phrasal_verbs.find(search_query)
+        if items:
             for item in items:
                 for key, value in item.items():
                     phrasal_verb_data[key] = value
