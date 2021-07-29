@@ -11,6 +11,12 @@ from core.utils import check_if_only_int_numbers_exist, token_required, parse_gi
 
 api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 
+def get_only_verbs():
+    verbs = set()
+    for item in mongo.db.phrasal_verbs.find():
+        verbs.add(item["verb"])
+    print('zxvzvxcv', verbs)
+    return list(verbs)
 
 def get_phrasal_verbs(verb=None, particle=None):
     query = {}
@@ -48,6 +54,8 @@ parser_create.add_argument('definitions', type=str, help='Definitions', action='
 parser_create.add_argument('sentences', type=str, help='Sentences', action='append')
 parser_create.add_argument('level', type=int, help='Learning level')
 
+parser_search_verb = reqparse.RequestParser()
+parser_search_verb.add_argument('only_verb', type=bool, location="args")
 
 parser_search = reqparse.RequestParser()
 parser_search.add_argument('particle', type=str, help='Particle(adverb or preposition', location="args")
@@ -56,10 +64,15 @@ parser_search.add_argument('particle', type=str, help='Particle(adverb or prepos
 @api.route('/')
 class PhrasalVerbs(CustomResource):
     @api.doc('list of phrasal_verbs')
+    @api.expect(parser_search_verb)
     @api.response(203, 'Phrasal verb does not exist')
     def get(self):
-        '''List all phrasal verbs'''     
-        result = get_phrasal_verbs()
+        '''List all phrasal verbs'''
+        args = parser_search_verb.parse_args()
+        if args['only_verb']:
+            result = get_only_verbs()
+        else:
+            result = get_phrasal_verbs()
         status = 200 if result else 203
         return self.send(status=status, result=result)
 
