@@ -73,13 +73,21 @@ def upsert_phrasal_verbs(args):
         traceback.print_exc()
         return False
 
-def delete_phrasal_verbs():
+
+def delete_phrasal_verbs(args):
+    query = {}
+    if args["_id"] is not None:
+        query["_id"] = args["_id"]
+        
+    if args["verb"] is not None:
+        query["verb"] = args["verb"]
     try:
-        mongo.db.phrasal_verbs.delete_many({})
+        mongo.db.phrasal_verbs.delete_many(query)
         return True
     except:
         traceback.print_exc()
         return False
+
 
 parser_create = reqparse.RequestParser()
 parser_create.add_argument('verb', type=str, required=True, help='Verb')
@@ -95,6 +103,12 @@ parser_search_verb.add_argument('verb', type=str, help='Verb')
 
 parser_search = reqparse.RequestParser()
 parser_search.add_argument('particle', type=str, help='Particle(adverb or preposition', location="args")
+
+
+parser_delete = reqparse.RequestParser()
+parser_delete.add_argument('_id', type=str, help='_id')
+parser_delete.add_argument('verb', type=str, help='Verb')
+
 
 @api.route('/')
 class PhrasalVerbs(CustomResource):
@@ -124,10 +138,12 @@ class PhrasalVerbs(CustomResource):
         return self.send(status=status)
 
     @api.doc('delete a phrasal verb')
+    @api.expect(parser_delete)
     def delete(self):
         '''Delete an phrasal verb'''
         
-        result = delete_phrasal_verbs()
+        args = parser_delete.parse_args()
+        result = delete_phrasal_verbs(args)
         status = 200 if result else 400
         
         return self.send(status=status)
