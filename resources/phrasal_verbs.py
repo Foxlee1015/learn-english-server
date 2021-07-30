@@ -16,6 +16,21 @@ def get_only_verbs():
     verbs = mongo.db.phrasal_verbs.distinct("verb");
     return verbs
 
+def get_random_verbs(count):
+    random_verbs = []
+    try:
+        for item in mongo.db.phrasal_verbs.aggregate([{"$sample": {"size":count}}]):
+            random_verb = {}
+            for key, value in item.items():
+                if key == '_id': 
+                    value = str(value)
+                random_verb[key] = value
+            random_verbs.append(random_verb)
+        return random_verbs
+    except:
+        traceback.print_exc()
+        return random_verbs
+
 
 def get_phrasal_verb(verb):
     try:
@@ -125,6 +140,7 @@ parser_create.add_argument('is_public', type=int, help='Public')
 
 parser_search_verb = reqparse.RequestParser()
 parser_search_verb.add_argument('only_verb', type=int, location="args", help="Return only verbs when 1")
+parser_search_verb.add_argument('random_verb_count', type=int, location="args", help="Get random verbs")
 parser_search_verb.add_argument('search_key', type=str, help='To search in verb field', location="args")
 parser_search_verb.add_argument('full_search', type=int, help='Search in indexes(all fields) when 1', location="args")
 
@@ -142,6 +158,8 @@ class PhrasalVerbs(CustomResource):
         args = parser_search_verb.parse_args()
         if args['only_verb'] == 1:
             result = get_only_verbs()
+        elif args['random_verb_count'] is not None:
+            result = get_random_verbs(count=args['random_verb_count'])
         else:
             result = get_phrasal_verbs(search_key=args["search_key"], full_search=args["full_search"])
         
