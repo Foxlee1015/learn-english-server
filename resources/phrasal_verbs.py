@@ -16,6 +16,24 @@ def get_only_verbs():
     verbs = mongo.db.phrasal_verbs.distinct("verb");
     return verbs
 
+
+def get_phrasal_verb(verb):
+    try:
+        query = {
+            'verb': verb
+        }
+        verb= mongo.db.phrasal_verbs.find_one(query)
+        phrasal_verb = {}
+        if verb:    
+            for key, value in verb.items():
+                if key == '_id': 
+                    value = str(value)
+                phrasal_verb[key] = value
+            return phrasal_verb
+    except:
+        traceback.print_exc()
+        return None
+
 def get_phrasal_verbs(search_key=None, full_search=0):
     phrasal_verbs = []
     try:
@@ -71,8 +89,7 @@ def upsert_phrasal_verbs(args):
             "definitions": definitions,
             "sentences": sentences,
             "difficulty": difficulty,
-            "is_public": is_public,
-            'created_time': datetime.now()
+            "is_public": is_public
         }
         
         mongo.db.phrasal_verbs.replace_one(search_query, phrasal_verb_data, upsert=True)
@@ -111,13 +128,9 @@ parser_search_verb.add_argument('only_verb', type=int, location="args", help="Re
 parser_search_verb.add_argument('search_key', type=str, help='To search in verb field', location="args")
 parser_search_verb.add_argument('full_search', type=int, help='Search in indexes(all fields) when 1', location="args")
 
-parser_search = reqparse.RequestParser()
-parser_search.add_argument('particle', type=str, help='Particle(adverb or preposition', location="args")
-
 parser_delete = reqparse.RequestParser()
 parser_delete.add_argument('_id', type=str, help='_id', location="args")
 parser_delete.add_argument('verb', type=str, help='Verb', location="args")
-
 
 @api.route('/')
 class PhrasalVerbs(CustomResource):
@@ -162,10 +175,9 @@ class PhrasalVerbs(CustomResource):
 class PhrasalVerb(CustomResource):
     @api.doc('phrasal_verb')
     @api.response(203, 'Phrasal verb does not exist')
-    @api.expect(parser_search)
     def get(self,verb):
-        '''Get a phrasal verb'''
-        args = parser_search.parse_args()     
-        result = get_phrasal_verbs(verb=verb, particle=args["particle"])
+        '''Get a phrasal verb'''  
+        result = get_phrasal_verb(verb)
+        print('rrr', result)
         status = 200 if result else 203
         return self.send(status=status, result=result)

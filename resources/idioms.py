@@ -48,8 +48,7 @@ def add_idiom(args):
             "definitions": args.get("definitions") or [],
             "sentences": args.get("sentences") or [],
             "difficulty": args.get("difficulty") or 0,
-            "is_public": args.get("is_public") or 0,
-            'created_time': datetime.now()
+            "is_public": args.get("is_public") or 0
         }
         mongo.db.idioms.insert_one(idiom_data)
         return True
