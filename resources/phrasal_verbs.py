@@ -77,7 +77,7 @@ def upsert_phrasal_verbs(args):
 def delete_phrasal_verbs(args):
     query = {}
     if args["_id"] is not None:
-        query["_id"] = args["_id"]
+        query["_id"] = ObjectId(args["_id"])
         
     if args["verb"] is not None:
         query["verb"] = args["verb"]
@@ -99,15 +99,15 @@ parser_create.add_argument('is_public', type=int, help='Public')
 
 parser_search_verb = reqparse.RequestParser()
 parser_search_verb.add_argument('only_verb', type=int, location="args")
-parser_search_verb.add_argument('verb', type=str, help='Verb')
+parser_search_verb.add_argument('verb', type=str, help='Verb', location="args")
 
 parser_search = reqparse.RequestParser()
 parser_search.add_argument('particle', type=str, help='Particle(adverb or preposition', location="args")
 
 
 parser_delete = reqparse.RequestParser()
-parser_delete.add_argument('_id', type=str, help='_id')
-parser_delete.add_argument('verb', type=str, help='Verb')
+parser_delete.add_argument('_id', type=str, help='_id', location="args")
+parser_delete.add_argument('verb', type=str, help='Verb', location="args")
 
 
 @api.route('/')
@@ -133,7 +133,7 @@ class PhrasalVerbs(CustomResource):
         
         args = parser_create.parse_args()
         result = upsert_phrasal_verbs(args)
-        status = 200 if result else 400
+        status = 201 if result else 400
         
         return self.send(status=status)
 

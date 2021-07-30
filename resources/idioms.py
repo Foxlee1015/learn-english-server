@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
 import traceback
+from bson import ObjectId
 from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
@@ -37,12 +38,41 @@ def add_idiom(args):
         return False
 
 
+def delete_idiom(args):
+    query = {}
+    if args["_id"] is not None:
+        query["_id"] = ObjectId(args["_id"])
+        
+    if args["expression"] is not None:
+        query["expression"] = args["expression"]
+
+    items = mongo.db.idioms.find(query)
+    if items:
+        for item in items:
+            print(item)
+            for key, value in item.items():
+                print(key, value)
+        
+    try:
+        print(query)
+        mongo.db.idioms.delete_many(query)
+        return True
+    except:
+        traceback.print_exc()
+        return False
+
 
 parser_create = reqparse.RequestParser()
 parser_create.add_argument('expression', type=str, required=True, help='Expression')
 parser_create.add_argument('definitions', type=str, help='Definitions', action='append')
 parser_create.add_argument('sentences', type=str, help='Sentences', action='append')
 parser_create.add_argument('level', type=int, help='Learning level')
+
+
+
+parser_delete = reqparse.RequestParser()
+parser_delete.add_argument('_id', type=str, help='_id', location="args")
+parser_delete.add_argument('expression', type=str, help='Expression', location="args")
 
 
 @api.route('/')
@@ -65,6 +95,17 @@ class Idioms(CustomResource):
         # request.get_json(force=True)
         args = parser_create.parse_args()
         result = add_idiom(args)
+        status = 201 if result else 400
+        
+        return self.send(status=status)
+
+    @api.doc('delete an idiom')
+    @api.expect(parser_delete)
+    def delete(self):
+        '''Delete an idiom'''
+        
+        args = parser_delete.parse_args()
+        result = delete_idiom(args)
         status = 200 if result else 400
         
         return self.send(status=status)
