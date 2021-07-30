@@ -10,6 +10,7 @@ from core.errors import DbConnectError
 def init_settings():
     try:
         init_db()
+        set_mongodb_indexes()
     except DbConnectError as e:
         print(e)
     except:
@@ -20,6 +21,11 @@ def background_task():
     while True:
         print("background_task")
         # backup_db()
+
+def set_mongodb_indexes():
+    print("set mongodb indexes")
+    mongo.db.idioms.create_index([("$**","text")])
+    mongo.db.phrasal_verbs.create_index([("$**","text")])
 
 def create_app():
     app = Flask(__name__)

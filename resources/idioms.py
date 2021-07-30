@@ -13,28 +13,48 @@ from core.utils import check_if_only_int_numbers_exist, token_required, parse_gi
 api = Namespace('idioms', description='Idioms related operations')
 
 
-def get_idioms():
-    idioms = []
-    for item in mongo.db.idioms.find():
-        idiom = {}
-        for key, value in item.items():
-            if key == '_id': 
-                value = str(value)
-            if key == 'created_time': 
-                value = json_serializer(value)
-            
-            idiom[key] = value
-        idioms.append(idiom)
-    
+def get_only_idioms():
+    idioms = mongo.db.idioms.distinct("expression");
     return idioms
+
+def get_idioms(search_key=None, full_search=0):
+    idioms = []
+    try:
+        query = {}
+        if search_key is not None:
+            if full_search:
+                query["$text"] = {"$search": search_key}
+            else: # contains search key in expression field
+                query["expression"] = {"$regex": search_key}
+        for item in mongo.db.idioms.find(query):
+            idiom = {}
+            for key, value in item.items():
+                if key == '_id': 
+                    value = str(value)
+                if key == 'created_time': 
+                    value = json_serializer(value)
+                
+                idiom[key] = value
+            idioms.append(idiom)
+        return idioms
+    except:
+        traceback.print_exc()
+        return idioms
 
 def add_idiom(args):
     try:
-        args['created_time'] = datetime.now()
-        print(args)
-        mongo.db.idioms.insert_one(args)
+        idiom_data = {
+            "expression": args.expression,
+            "definitions": args.get("definitions") or [],
+            "sentences": args.get("sentences") or [],
+            "difficulty": args.get("difficulty") or 0,
+            "is_public": args.get("is_public") or 0,
+            'created_time': datetime.now()
+        }
+        mongo.db.idioms.insert_one(idiom_data)
         return True
     except:
+        traceback.print_exc()
         return False
 
 
@@ -45,16 +65,8 @@ def delete_idiom(args):
         
     if args["expression"] is not None:
         query["expression"] = args["expression"]
-
-    items = mongo.db.idioms.find(query)
-    if items:
-        for item in items:
-            print(item)
-            for key, value in item.items():
-                print(key, value)
         
     try:
-        print(query)
         mongo.db.idioms.delete_many(query)
         return True
     except:
@@ -66,9 +78,13 @@ parser_create = reqparse.RequestParser()
 parser_create.add_argument('expression', type=str, required=True, help='Expression')
 parser_create.add_argument('definitions', type=str, help='Definitions', action='append')
 parser_create.add_argument('sentences', type=str, help='Sentences', action='append')
-parser_create.add_argument('level', type=int, help='Learning level')
+parser_create.add_argument('difficulty', type=int, help='Learning level')
+parser_create.add_argument('is_public', type=int, help='Public')
 
-
+parser_search_idiom = reqparse.RequestParser()
+parser_search_idiom.add_argument('only_idiom', type=int, location="args", help="Return only idioms when 1")
+parser_search_idiom.add_argument('search_key', type=str, help='To search in idiom field', location="args")
+parser_search_idiom.add_argument('full_search', type=int, help='Search in indexes(all fields) when 1', location="args")
 
 parser_delete = reqparse.RequestParser()
 parser_delete.add_argument('_id', type=str, help='_id', location="args")
@@ -78,10 +94,16 @@ parser_delete.add_argument('expression', type=str, help='Expression', location="
 @api.route('/')
 class Idioms(CustomResource):
     @api.doc('list_idioms')
+    @api.expect(parser_search_idiom)
     @api.response(203, 'Idiom does not exist')
     def get(self):
-        '''List all idioms'''     
-        result = get_idioms()
+        '''List all idioms'''
+        
+        args = parser_search_idiom.parse_args()
+        if args['only_idiom'] == 1:
+            result = get_only_idioms()
+        else:
+            result = get_idioms(search_key=args["search_key"], full_search=args["full_search"])
         status = 200 if result else 203
         return self.send(status=status, result=result)
 
@@ -91,8 +113,6 @@ class Idioms(CustomResource):
     @api.response(409, 'Duplicate idiom')
     def post(self):
         '''Add an idiom'''
-        
-        # request.get_json(force=True)
         args = parser_create.parse_args()
         result = add_idiom(args)
         status = 201 if result else 400
