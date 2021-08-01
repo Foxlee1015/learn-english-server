@@ -108,23 +108,24 @@ def upsert_phrasal_verbs(args):
         }
         
         mongo.db.phrasal_verbs.replace_one(search_query, phrasal_verb_data, upsert=True)
-
         return True
+
     except:
         traceback.print_exc()
         return False
 
 
 def delete_phrasal_verbs(args):
-    query = {}
-    if args["_id"] is not None:
-        query["_id"] = ObjectId(args["_id"])
-        
-    if args["verb"] is not None:
-        query["verb"] = args["verb"]
     try:
+        query = {}
+        if args["_id"] is not None:
+            query["_id"] = ObjectId(args["_id"])
+            
+        if args["verb"] is not None:
+            query["verb"] = args["verb"]
         mongo.db.phrasal_verbs.delete_many(query)
         return True
+
     except:
         traceback.print_exc()
         return False
@@ -152,50 +153,56 @@ parser_delete.add_argument('verb', type=str, help='Verb', location="args")
 class PhrasalVerbs(CustomResource):
     @api.doc('list of phrasal_verbs')
     @api.expect(parser_search_verb)
-    @api.response(203, 'Phrasal verb does not exist')
     def get(self):
         '''List all phrasal verbs'''
-        args = parser_search_verb.parse_args()
-        if args['only_verb'] == 1:
-            result = get_only_verbs()
-        elif args['random_verb_count'] is not None:
-            result = get_random_verbs(count=args['random_verb_count'])
-        else:
-            result = get_phrasal_verbs(search_key=args["search_key"], full_search=args["full_search"])
-        
-        status = 200 if result else 203
-        return self.send(status=status, result=result)
+        try:
+            result = []
+            args = parser_search_verb.parse_args()
+            if args['only_verb'] == 1:
+                result = get_only_verbs()
+            elif args['random_verb_count'] is not None:
+                result = get_random_verbs(count=args['random_verb_count'])
+            else:
+                result = get_phrasal_verbs(search_key=args["search_key"], full_search=args["full_search"])
+            
+            return self.send(status=200, result=result)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
     
     @api.doc('add a phrasal verb')
     @api.expect(parser_create)
-    @api.response(409, 'Duplicate phrasal verb')
     def post(self):
         '''Add an phrasal verb'''
-        
-        args = parser_create.parse_args()
-        result = upsert_phrasal_verbs(args)
-        status = 201 if result else 400
-        
-        return self.send(status=status)
+        try:
+            args = parser_create.parse_args()
+            result = upsert_phrasal_verbs(args)
+            status = 201 if result else 400
+            
+            return self.send(status=status)
+        except:
+            return self.send(status=500)
 
     @api.doc('delete a phrasal verb')
     @api.expect(parser_delete)
     def delete(self):
         '''Delete an phrasal verb'''
-        
-        args = parser_delete.parse_args()
-        result = delete_phrasal_verbs(args)
-        status = 200 if result else 400
-        
-        return self.send(status=status)
+        try:
+            args = parser_delete.parse_args()
+            result = delete_phrasal_verbs(args)
+            status = 200 if result else 400
+            
+            return self.send(status=status)
+        except:
+            return self.send(status=500)
 
 @api.route('/<string:verb>')
 class PhrasalVerb(CustomResource):
     @api.doc('phrasal_verb')
-    @api.response(203, 'Phrasal verb does not exist')
     def get(self,verb):
-        '''Get a phrasal verb'''  
-        result = get_phrasal_verb(verb)
-        print('rrr', result)
-        status = 200 if result else 203
-        return self.send(status=status, result=result)
+        '''Get a phrasal verb'''
+        try:
+            result = get_phrasal_verb(verb)
+            return self.send(status=200, result=result)
+        except:
+            return self.send(status=500)

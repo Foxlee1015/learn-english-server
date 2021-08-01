@@ -18,18 +18,9 @@ parser_header = reqparse.RequestParser()
 parser_header.add_argument('Authorization', type=str, location='headers')
 
 @api.route('/')
-@api.response(404, 'Session not found')
-class Session(CustomResource):
-    
-    @api.doc('get_sessions')
-    @api.expect(parser_header)
-    @token_required
-    def get(self, **kwargs):
-        status = 200 if kwargs["user_id"] is not None else 400
-        print(kwargs["user_id"])
-        return self.send(status=status)
-    
-    @api.doc('create_sessions')
+@api.response(401, 'Session not found')
+class Session(CustomResource):  
+    @api.doc('create_session')
     @api.expect(parser_create)
     def post(self):
         '''Create a session after verifying user info '''
@@ -43,11 +34,23 @@ class Session(CustomResource):
         status = 201 if session_id is not None else 400
         return self.send(status=status, result=session_id)
 
-    @api.doc('delete_sessions')
+    @api.doc('delete_session')
     @api.expect(parser_header)
     def delete(self):
-        args = parser_header.parse_args()
         '''User logout'''
-        print(args)
+        args = parser_header.parse_args()
         redis_store.delete(args["Authorization"])
         return self.send(status=200)
+
+
+@api.route('/validate')
+@api.response(401, 'Session is not valid')
+class SessionVlidation(CustomResource):
+    
+    @api.doc('get_session')
+    @api.expect(parser_header)
+    @token_required
+    def get(self, **kwargs):
+        '''Check if session is valid'''
+        status = 200 if kwargs["user_info"] is not None else 401
+        return self.send(status=status)

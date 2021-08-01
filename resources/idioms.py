@@ -94,37 +94,41 @@ parser_delete.add_argument('expression', type=str, help='Expression', location="
 class Idioms(CustomResource):
     @api.doc('list_idioms')
     @api.expect(parser_search_idiom)
-    @api.response(203, 'Idiom does not exist')
     def get(self):
         '''List all idioms'''
-        
-        args = parser_search_idiom.parse_args()
-        if args['only_idiom'] == 1:
-            result = get_only_idioms()
-        else:
-            result = get_idioms(search_key=args["search_key"], full_search=args["full_search"])
-        status = 200 if result else 203
-        return self.send(status=status, result=result)
+        try:
+            args = parser_search_idiom.parse_args()
+            if args['only_idiom'] == 1:
+                result = get_only_idioms()
+            else:
+                result = get_idioms(search_key=args["search_key"], full_search=args["full_search"])
+            return self.send(status=200, result=result)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
 
-    
     @api.doc('add an idiom')
     @api.expect(parser_create)
-    @api.response(409, 'Duplicate idiom')
     def post(self):
         '''Add an idiom'''
-        args = parser_create.parse_args()
-        result = add_idiom(args)
-        status = 201 if result else 400
-        
-        return self.send(status=status)
+        try:
+            args = parser_create.parse_args()
+            result = add_idiom(args)
+            status = 201 if result else 400
+            return self.send(status=status)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
 
     @api.doc('delete an idiom')
     @api.expect(parser_delete)
     def delete(self):
         '''Delete an idiom'''
-        
-        args = parser_delete.parse_args()
-        result = delete_idiom(args)
-        status = 200 if result else 400
-        
-        return self.send(status=status)
+        try:
+            args = parser_delete.parse_args()
+            result = delete_idiom(args)
+            status = 200 if result else 400        
+            return self.send(status=status)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
