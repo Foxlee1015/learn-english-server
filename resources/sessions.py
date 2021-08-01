@@ -2,7 +2,7 @@ import string
 import random
 from flask_restplus import Namespace, Resource, reqparse
 
-from core.db import get_session, redis_store
+from core.db import redis_store
 from .users import get_user_if_user_verified
 from core.utils import token_required
 from core.resource import CustomResource, response, json_serializer
