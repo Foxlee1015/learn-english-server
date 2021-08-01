@@ -5,6 +5,7 @@ import traceback
 import time
 from contextlib import contextmanager
 
+import redis
 import pymysql
 from flask_pymongo import PyMongo
 from dotenv import load_dotenv
@@ -21,6 +22,13 @@ load_dotenv(dotenv_path)
 
 mongo = PyMongo()
 mongo_uri = os.getenv('MONGO_DB_URI')
+
+redis_host = os.getenv('REDIS_HOST')
+redis_port = os.getenv('REDIS_PORT')
+redis_password = os.getenv('REDIS_PASSWORD')
+
+redis_store = redis.Redis(host=redis_host, port=redis_port, password=redis_password, 
+                decode_responses=True)
 
 db_host_dev = os.getenv('DB_HOST_DEV')
 db_host = os.getenv('DB_HOST')

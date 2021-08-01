@@ -28,13 +28,13 @@ def _create_user(name, email, password, user_type=2):
         traceback.print_exc()
         return None
 
-def return_user_id_if_user_password_is_correct(name, password):
+def get_user_if_user_verified(name, password):
     try:
         user_info = get_user_hashed_password_with_user_id(name)
-        if verify_password(password, user_info["salt"], user_info["password"]):
-            return user_info["id"]
-        else:
-            return None
+        if user_info:
+            if verify_password(password, user_info["salt"], user_info["password"]):
+                return user_info
+        return None
     except:
         traceback.print_exc()
         return None

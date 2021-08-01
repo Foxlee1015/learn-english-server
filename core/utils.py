@@ -11,6 +11,7 @@ from flask import request, current_app
 from flask_restplus import abort
 from dotenv import load_dotenv
 
+
 APP_ROOT = os.path.join(os.path.dirname(__file__), '..')   # refers to application_top
 dotenv_path = os.path.join(APP_ROOT, '.env')
 load_dotenv(dotenv_path)
@@ -24,17 +25,11 @@ pwd = os.getenv('SSH_PASSWORD')
 def token_required(f):
     def wrapper(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        user_info = None
-        kwargs["error_msg"] = None
+        user_id = None
         if auth_header:
-            from resources.tokens import get_user_info_if_token_is_valid
-            user_info, message_if_not_valid = get_user_info_if_token_is_valid(auth_header)
-            if message_if_not_valid != "":
-                user_info = None
-                kwargs["error_msg"] = message_if_not_valid
-        else:
-            kwargs["error_msg"] = "Token is required error"
-        return f(*args, **kwargs, current_user=user_info)
+            from .db import redis_store
+            user_id = redis_store.get(auth_header)
+        return f(*args, **kwargs, user_id=user_id)
 
     wrapper.__doc__ = f.__doc__
     wrapper.__name__ = f.__name__
