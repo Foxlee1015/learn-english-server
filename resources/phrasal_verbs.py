@@ -149,6 +149,10 @@ parser_delete = reqparse.RequestParser()
 parser_delete.add_argument('_id', type=str, help='_id', location="args")
 parser_delete.add_argument('verb', type=str, help='Verb', location="args")
 
+parser_header = reqparse.RequestParser()
+parser_header.add_argument('Authorization', type=str, required=True, location='headers')
+
+
 @api.route('/')
 class PhrasalVerbs(CustomResource):
     @api.doc('list of phrasal_verbs')
@@ -171,29 +175,38 @@ class PhrasalVerbs(CustomResource):
             return self.send(status=500)
     
     @api.doc('add a phrasal verb')
-    @api.expect(parser_create)
-    def post(self):
+    @api.expect(parser_create, parser_header)
+    @token_required
+    def post(self, **kwargs):
         '''Add an phrasal verb'''
         try:
+            if not self.is_admin(kwargs["user_info"]):
+                return self.send(status=403)
             args = parser_create.parse_args()
             result = upsert_phrasal_verbs(args)
             status = 201 if result else 400
             
             return self.send(status=status)
         except:
+            traceback.print_exc()
             return self.send(status=500)
 
     @api.doc('delete a phrasal verb')
-    @api.expect(parser_delete)
-    def delete(self):
+    @api.expect(parser_delete, parser_header)
+    @token_required
+    def delete(self, **kwargs):
         '''Delete an phrasal verb'''
         try:
+            if not self.is_admin(kwargs["user_info"]):
+                return self.send(status=403)
+
             args = parser_delete.parse_args()
             result = delete_phrasal_verbs(args)
             status = 200 if result else 400
             
             return self.send(status=status)
         except:
+            traceback.print_exc()
             return self.send(status=500)
 
 @api.route('/<string:verb>')
@@ -205,4 +218,5 @@ class PhrasalVerb(CustomResource):
             result = get_phrasal_verb(verb)
             return self.send(status=200, result=result)
         except:
+            traceback.print_exc()
             return self.send(status=500)
