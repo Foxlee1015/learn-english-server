@@ -23,6 +23,13 @@ class CustomResource(Resource):
         return Response(json_encode(response_body), status=kwargs["status"], 
                         headers=headers, mimetype="application/json")
 
+    def is_admin(self, user_info):
+        if user_info is None:
+            return False
+        if user_info["user_type"] == 0:
+            return True
+        return False
+
 
 def response(**kwargs):
     params = ['status', 'message', 'result']

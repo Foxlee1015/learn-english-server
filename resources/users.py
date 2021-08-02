@@ -3,8 +3,8 @@ import traceback
 from flask_restplus import Namespace, Resource, fields, reqparse
 
 from core.db import insert_user, get_user, get_users, delete_users, backup_db, get_user_hashed_password_with_user_id
-from core.resource import CustomResource, response, json_serializer_all_datetime_keys
-from core.utils import execute_command_ssh, check_if_only_int_numbers_exist, verify_password
+from core.resource import CustomResource, json_serializer_all_datetime_keys
+from core.utils import token_required, verify_password
 
 
 api = Namespace('users', description='Users related operations')
@@ -52,63 +52,80 @@ parser_delete = reqparse.RequestParser()
 parser_delete.add_argument('ids', type=str, required=True, action='split')
 
 
+parser_header = reqparse.RequestParser()
+parser_header.add_argument('Authorization', type=str, required=True, location='headers')
+
 
 @api.route('/')
 class Users(CustomResource):
     
     @api.doc('list_users')
-    @api.response(203, 'User does not exist')
-    def get(self):
+    @api.expect(parser_header)
+    @token_required
+    def get(self, **kwargs):
         '''List all users
         
         NOTE: Only for admin users
-        '''        
-        users = _get_users()
-        status = 200 if users else 203
-        return self.send(status=status, result=users)
-
+        '''     
+        try:
+            if not self.is_admin(kwargs["user_info"]):
+                return self.send(status=403)   
+            users = _get_users()
+            return self.send(status=200, result=users)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
 
     @api.doc('create a new user')
     @api.expect(parser_create)
-    @api.response(400, 'Password match error')
-    @api.response(409, 'Duplicate user name')
     def post(self):
         '''Create an user'''
-        args = parser_create.parse_args()
-        name = args["name"]
-        email = args["email"]
-        password = args["password"]
-        password_confirm = args["password_confirm"]
-        
-        if password_confirm != password:
-            return self.send(status=400, message="Password and Confirm password have to be same")
-        if get_user(name=name):
-            return self.send(status=409, message="The given username alreay exists.")
-        
-        result = _create_user(name, email, password)
-        status = 201 if result else 500
-        return self.send(status=status)
-
+        try:
+            args = parser_create.parse_args()
+            name = args["name"]
+            email = args["email"]
+            password = args["password"]
+            password_confirm = args["password_confirm"]
+            
+            if password_confirm != password:
+                return self.send(status=400, message="Password and Confirm password have to be same")
+            if get_user(name=name):
+                return self.send(status=400, message="The given username alreay exists.")
+            
+            result = _create_user(name, email, password)
+            if result:
+                return self.send(status=201)
+            else:
+                return self.send(status=500)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+  
 
     @api.doc('delete_users')
-    @api.expect(parser_delete)
-    @api.response(400, 'Check user ids')
-    def delete(self):
+    @api.expect(parser_delete, parser_header)
+    @token_required
+    def delete(self, **kwargs):
         '''Delete all users
         
         NOTE: Only for admin users or user owner
         '''
-        args = parser_delete.parse_args()
-        ids = args['ids']
-        if check_if_only_int_numbers_exist(ids):
+        try:
+            if not self.is_admin(kwargs["user_info"]):
+                return self.send(status=403)
+
+            args = parser_delete.parse_args()
             result = delete_users(args['ids'])
-            return self.send(status=200)
-        else:
+            if result:
+                return self.send(status=200)
             return self.send(status=400, message="Check user ids")
+            
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
 
 @api.route('/<int:id_>')
 @api.param('id_', 'The user identifier')
-@api.response(404, 'User not found')
 class User(CustomResource):
     @api.doc('get_user')
     def get(self, id_):
@@ -116,13 +133,6 @@ class User(CustomResource):
            
         user = get_user(id_=id_)
         if user is None:
-            return self.send(status=404, result=None) 
+            return self.send(status=200, result=None) 
         user = json_serializer_all_datetime_keys(user)
         return self.send(status=200, result=user)
-        
-    
-    @api.doc('delete_user')
-    def delete(self, id_):
-        '''Delete an user'''
-        result = delete_users([id_])
-        return self.send(status=200)
