@@ -31,24 +31,6 @@ def get_random_verbs(count):
         traceback.print_exc()
         return random_verbs
 
-
-def get_phrasal_verb(verb):
-    try:
-        query = {
-            'verb': verb
-        }
-        verb= mongo.db.phrasal_verbs.find_one(query)
-        phrasal_verb = {}
-        if verb:    
-            for key, value in verb.items():
-                if key == '_id': 
-                    value = str(value)
-                phrasal_verb[key] = value
-            return phrasal_verb
-    except:
-        traceback.print_exc()
-        return None
-
 def get_phrasal_verbs(search_key=None, full_search=0):
     phrasal_verbs = []
     try:
@@ -58,7 +40,6 @@ def get_phrasal_verbs(search_key=None, full_search=0):
                 query["$text"] = {"$search": search_key}
             else: # contains search key in verb field
                 query["verb"] = {"$regex": search_key}
-
         for item in mongo.db.phrasal_verbs.find(query):
             phrasal_verb = {}
             for key, value in item.items():
@@ -76,35 +57,18 @@ def get_phrasal_verbs(search_key=None, full_search=0):
 
 def upsert_phrasal_verbs(args):
     try:
-        verb = args.verb
-        particle = args.particle
-        definitions = args.get("definitions") or []
-        sentences = args.get("sentences") or []
-        difficulty = args.get("difficulty") or 0
-        is_public = args.get("is_public") or 0
+        search_query = {
+            "verb": args.verb,
+            "particle": args.particle,
+        }
         
-        search_query = {"verb": verb}
-        phrasal_verb_data = {}
-
-        # old data
-        items = mongo.db.phrasal_verbs.find(search_query)
-        if items:
-            for item in items:
-                for key, value in item.items():
-                    phrasal_verb_data[key] = value
-        
-        # new verb
-        if phrasal_verb_data.get("verb") is None:
-            phrasal_verb_data["verb"] = verb
-
-        # first particle
-        if phrasal_verb_data.get("particles") is None:
-            phrasal_verb_data["particles"] = {}
-        phrasal_verb_data["particles"][particle] = {
-            "definitions": definitions,
-            "sentences": sentences,
-            "difficulty": difficulty,
-            "is_public": is_public
+        phrasal_verb_data = {
+            "verb": args.verb,
+            "particle": args.particle,
+            "definitions": args.get("definitions") or [],
+            "sentences": args.get("sentences") or [],
+            "difficulty": args.get("difficulty") or 0,
+            "is_public": args.get("is_public") or 0
         }
         
         mongo.db.phrasal_verbs.replace_one(search_query, phrasal_verb_data, upsert=True)
@@ -123,6 +87,9 @@ def delete_phrasal_verbs(args):
             
         if args["verb"] is not None:
             query["verb"] = args["verb"]
+        
+        if args["particle"] is not None:
+            query["particle"] = args["verb"]
         mongo.db.phrasal_verbs.delete_many(query)
         return True
 
@@ -148,6 +115,7 @@ parser_search_verb.add_argument('full_search', type=int, help='Search in indexes
 parser_delete = reqparse.RequestParser()
 parser_delete.add_argument('_id', type=str, help='_id', location="args")
 parser_delete.add_argument('verb', type=str, help='Verb', location="args")
+parser_delete.add_argument('particle', type=str, help='Particle', location="args")
 
 parser_header = reqparse.RequestParser()
 parser_header.add_argument('Authorization', type=str, required=True, location='headers')
@@ -167,6 +135,7 @@ class PhrasalVerbs(CustomResource):
             elif args['random_verb_count'] is not None:
                 result = get_random_verbs(count=args['random_verb_count'])
             else:
+                print(args)
                 result = get_phrasal_verbs(search_key=args["search_key"], full_search=args["full_search"])
             
             return self.send(status=200, result=result)
@@ -215,7 +184,8 @@ class PhrasalVerb(CustomResource):
     def get(self,verb):
         '''Get a phrasal verb'''
         try:
-            result = get_phrasal_verb(verb)
+            result = get_phrasal_verbs(search_key=verb)
+
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
