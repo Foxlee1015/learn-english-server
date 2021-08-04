@@ -3,7 +3,7 @@ import random
 import traceback
 from flask_restplus import Namespace, reqparse
 
-from core.db import redis_store
+from core.db import redis_store, get_user
 from .users import get_user_if_user_verified
 from core.utils import token_required, random_string_digits
 from core.resource import CustomResource
@@ -31,7 +31,14 @@ class Session(CustomResource):
             if user:
                 session_id = random_string_digits(30)
                 redis_store.set(name=session_id, value=user["id"], ex=60*60*24)
-                return self.send(status=201, result=session_id)
+                user_data = get_user(id_=user["id"])
+                is_admin = 1 if user_data["user_type"] == 0 else 0
+                result = {
+                    "session": session_id,
+                    "name": user_data["name"],
+                    "is_admin": is_admin
+                }
+                return self.send(status=201, result=result)
             else:
                 return self.send(status=400)
         except:
