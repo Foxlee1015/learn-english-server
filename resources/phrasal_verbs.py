@@ -5,10 +5,9 @@ from bson import ObjectId
 from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
-from core.db import mongo
 from core.resource import CustomResource, response, json_serializer, json_serializer_all_datetime_keys
 from core.utils import check_if_only_int_numbers_exist, token_required, parse_given_str_datetime_or_current_datetime
-
+from core.mongo_db import mongo, gen_query
 
 api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 
@@ -31,15 +30,20 @@ def get_random_verbs(count):
         traceback.print_exc()
         return random_verbs
 
-def get_phrasal_verbs(search_key=None, full_search=0):
+
+def get_phrasal_verbs(search_key=None, full_search=0, exact=0):
     phrasal_verbs = []
     try:
         query = {}
         if search_key is not None:
             if full_search:
-                query["$text"] = {"$search": search_key}
-            else: # contains search key in verb field
-                query["verb"] = {"$regex": search_key}
+                query["$or"] = [
+                    gen_query("verb", search_key, exact),
+                    gen_query("definitions", search_key, exact),
+                    gen_query("sentences", search_key, exact),
+                ]
+            else:
+                query = gen_query("verb", search_key, exact)
         for item in mongo.db.phrasal_verbs.find(query):
             phrasal_verb = {}
             for key, value in item.items():
@@ -111,6 +115,7 @@ parser_search_verb.add_argument('only_verb', type=int, location="args", help="Re
 parser_search_verb.add_argument('random_verb_count', type=int, location="args", help="Get random verbs")
 parser_search_verb.add_argument('search_key', type=str, help='To search in verb field', location="args")
 parser_search_verb.add_argument('full_search', type=int, help='Search in indexes(all fields) when 1', location="args")
+parser_search_verb.add_argument('exact', type=int, help='Search exact search key when 1', location="args")
 
 parser_delete = reqparse.RequestParser()
 parser_delete.add_argument('_id', type=str, help='_id', location="args")
@@ -135,8 +140,7 @@ class PhrasalVerbs(CustomResource):
             elif args['random_verb_count'] is not None:
                 result = get_random_verbs(count=args['random_verb_count'])
             else:
-                print(args)
-                result = get_phrasal_verbs(search_key=args["search_key"], full_search=args["full_search"])
+                result = get_phrasal_verbs(search_key=args["search_key"], full_search=args["full_search"], exact=args["exact"])
             
             return self.send(status=200, result=result)
         except:

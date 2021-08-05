@@ -4,7 +4,8 @@ from flask import Flask
 from flask_cors import CORS
 
 from resources import blueprint as api
-from core.db import init_db, mongo_uri, mongo
+from core.db import init_db
+from core.mongo_db import mongo_uri, mongo
 from core.errors import DbConnectError
 
 def init_settings():

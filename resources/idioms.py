@@ -5,10 +5,9 @@ from bson import ObjectId
 from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
-from core.db import mongo
 from core.resource import CustomResource, response, json_serializer, json_serializer_all_datetime_keys
 from core.utils import check_if_only_int_numbers_exist, token_required, parse_given_str_datetime_or_current_datetime
-
+from core.mongo_db import mongo, gen_query
 
 api = Namespace('idioms', description='Idioms related operations')
 
@@ -17,15 +16,19 @@ def get_only_idioms():
     idioms = mongo.db.idioms.distinct("expression");
     return idioms
 
-def get_idioms(search_key=None, full_search=0):
+def get_idioms(search_key=None, full_search=0, exact=0):
     idioms = []
     try:
         query = {}
         if search_key is not None:
             if full_search:
-                query["$text"] = {"$search": search_key}
-            else: # contains search key in expression field
-                query["expression"] = {"$regex": search_key}
+                query["$or"] = [
+                    gen_query("expression", search_key, exact),
+                    gen_query("definitions", search_key, exact),
+                    gen_query("sentences", search_key, exact),
+                ]
+            else:
+                query = gen_query("expression", search_key, exact)
         for item in mongo.db.idioms.find(query):
             idiom = {}
             for key, value in item.items():
@@ -84,6 +87,8 @@ parser_search_idiom = reqparse.RequestParser()
 parser_search_idiom.add_argument('only_idiom', type=int, location="args", help="Return only idioms when 1")
 parser_search_idiom.add_argument('search_key', type=str, help='To search in idiom field', location="args")
 parser_search_idiom.add_argument('full_search', type=int, help='Search in indexes(all fields) when 1', location="args")
+parser_search_idiom.add_argument('exact', type=int, help='Search exact search key when 1', location="args")
+
 
 parser_delete = reqparse.RequestParser()
 parser_delete.add_argument('_id', type=str, help='_id', location="args")
@@ -104,7 +109,7 @@ class Idioms(CustomResource):
             if args['only_idiom'] == 1:
                 result = get_only_idioms()
             else:
-                result = get_idioms(search_key=args["search_key"], full_search=args["full_search"])
+                result = get_idioms(search_key=args["search_key"], full_search=args["full_search"], exact=args["exact"])
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
