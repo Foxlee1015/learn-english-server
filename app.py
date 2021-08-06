@@ -26,7 +26,11 @@ def background_task():
 def set_mongodb_indexes():
     print("set mongodb indexes")
     mongo.db.idioms.create_index([("$**","text")])
+    mongo.db.user_like_idiom.create_index([("userId",1)])
+    mongo.db.user_like_idiom.create_index([("idiomId",1)])
     mongo.db.phrasal_verbs.create_index([("$**","text")])
+    mongo.db.user_like_phrasal_verb.create_index([("userId",1)])
+    mongo.db.user_like_phrasal_verb.create_index([("phrasalVerbId",1)])
 
 def create_app():
     app = Flask(__name__)
