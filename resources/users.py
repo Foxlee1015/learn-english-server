@@ -5,7 +5,8 @@ from flask_restplus import Namespace, Resource, fields, reqparse
 from core.db import insert_user, get_user, get_users, delete_users, backup_db, get_user_hashed_password_with_user_id
 from core.resource import CustomResource, json_serializer_all_datetime_keys
 from core.utils import token_required, verify_password
-
+from resources.idioms import get_idioms_like
+from resources.phrasal_verbs import get_phrasal_verbs_like
 
 api = Namespace('users', description='Users related operations')
 
@@ -136,3 +137,29 @@ class User(CustomResource):
             return self.send(status=200, result=None) 
         user = json_serializer_all_datetime_keys(user)
         return self.send(status=200, result=user)
+
+
+@api.route('/likes')
+class UserLikes(CustomResource):
+    @api.doc('get_user_likes')
+    @api.expect(parser_header)
+    @token_required
+    def get(self, **kwargs):
+        try:
+            if kwargs["user_info"] is None:
+                return self.send(status=401)
+            idiom_count = get_idioms_like(user_id=kwargs["user_info"]["id"])
+            phrasal_verb_count = get_phrasal_verbs_like(user_id=kwargs["user_info"]["id"])
+
+            result = {
+                "idioms": {
+                    "count": idiom_count
+                },
+                "phrassal_verbs": {
+                    "count": phrasal_verb_count
+                }
+            }
+            return self.send(status=200, result=result)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)

@@ -75,6 +75,34 @@ def delete_idiom(args):
         traceback.print_exc()
         return False
 
+def get_idioms_like(idiom_id=None, user_id=None):
+    query = {"active" : 1}
+    if user_id is None:
+        query["idiomId"] = idiom_id
+    else:
+        query["userId"] = user_id
+
+    return mongo.db.user_like_idiom.find(query).count()
+
+
+def update_user_like_idiom(args):
+    try:
+        search_query = {
+            "userId": args.user_id,
+            "idiomId": args.idiom_id,
+        }
+
+        user_like = {
+            "userId": args.user_id,
+            "idiomId": args.idiom_id,
+            "active": args.like
+        }
+    
+        mongo.db.user_like_idiom.replace_one(search_query, user_like, upsert=True)
+        return True
+    except:
+        traceback.print_exc()
+        return None
 
 parser_create = reqparse.RequestParser()
 parser_create.add_argument('expression', type=str, required=True, help='Expression')
@@ -96,6 +124,13 @@ parser_delete.add_argument('expression', type=str, help='Expression', location="
 
 parser_header = reqparse.RequestParser()
 parser_header.add_argument('Authorization', type=str, required=True, location='headers')
+
+parser_idiom_id = reqparse.RequestParser()
+parser_idiom_id.add_argument('idiom_id', type=str, help='_id', required=True, location="args")
+
+parser_like_create = reqparse.RequestParser()
+parser_like_create.add_argument('idiom_id', type=str, required=True, help='Idiom id')
+parser_like_create.add_argument('like', type=int, required=True, help='like when 1')
 
 
 @api.route('/')
@@ -144,6 +179,39 @@ class Idioms(CustomResource):
             result = delete_idiom(args)
             status = 200 if result else 400        
             return self.send(status=status)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+
+
+@api.route('/likes')
+class IdiomLikes(CustomResource):
+    @api.doc('idiom likes')
+    @api.expect(parser_idiom_id)
+    def get(self):
+        try:
+            args = parser_idiom_id.parse_args()
+            count = get_idioms_like(idiom_id=args["idiom_id"])
+
+            return self.send(status=200, result=count)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+    
+    
+    @api.expect(parser_like_create, parser_header)
+    @token_required
+    def post(self, **kwargs):
+        try:
+            if kwargs["user_info"] is None:
+                return self.send(status=401)
+            args = parser_like_create.parse_args()
+            args["user_id"] = kwargs["user_info"]["id"]
+            result = update_user_like_idiom(args)
+            if result:
+                return self.send(status=200)
+            else:
+                return self.send(status=400)
         except:
             traceback.print_exc()
             return self.send(status=500)

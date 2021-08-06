@@ -101,7 +101,34 @@ def delete_phrasal_verbs(args):
         traceback.print_exc()
         return False
 
+def get_phrasal_verbs_like(phrasal_verb_id=None, user_id=None):
+    query = {"active" : 1}
+    if user_id is None:
+        query["phrasalVerbId"] = phrasal_verb_id
+    else:
+        query["userId"] = user_id
 
+    return mongo.db.user_like_phrasal_verb.find(query).count()
+
+def update_user_like_phrasal_verb(args):
+    try:
+        search_query = {
+            "userId": args.user_id,
+            "phrasalVerbId": args.phrasal_verb_id,
+        }
+
+        user_like = {
+            "userId": args.user_id,
+            "phrasalVerbId": args.phrasal_verb_id,
+            "active": args.like
+        }
+    
+        mongo.db.user_like_phrasal_verb.replace_one(search_query, user_like, upsert=True)
+        return True
+    except:
+        traceback.print_exc()
+        return None
+        
 parser_create = reqparse.RequestParser()
 parser_create.add_argument('verb', type=str, required=True, help='Verb')
 parser_create.add_argument('particle', type=str, required=True, help='Particle(adverb or preposition')
@@ -124,6 +151,13 @@ parser_delete.add_argument('particle', type=str, help='Particle', location="args
 
 parser_header = reqparse.RequestParser()
 parser_header.add_argument('Authorization', type=str, required=True, location='headers')
+
+parser_phrasal_verb_id = reqparse.RequestParser()
+parser_phrasal_verb_id.add_argument('phrasal_verb_id', type=str, help='_id', required=True, location="args")
+
+parser_like_create = reqparse.RequestParser()
+parser_like_create.add_argument('phrasal_verb_id', type=str, required=True, help='Idiom id')
+parser_like_create.add_argument('like', type=int, required=True, help='like when 1')
 
 
 @api.route('/')
@@ -191,6 +225,37 @@ class PhrasalVerb(CustomResource):
             result = get_phrasal_verbs(search_key=verb)
 
             return self.send(status=200, result=result)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+
+@api.route('/likes')
+class PhrasalVerbLikes(CustomResource):
+    @api.doc('phrasal_verb')
+    @api.expect(parser_phrasal_verb_id)
+    def get(self):
+        try:
+            args = parser_phrasal_verb_id.parse_args()
+            count = get_phrasal_verbs_like(args["phrasal_verb_id"])
+
+            return self.send(status=200, result=count)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+    
+    @api.expect(parser_like_create, parser_header)
+    @token_required
+    def post(self, **kwargs):
+        try:
+            if kwargs["user_info"] is None:
+                return self.send(status=401)
+            args = parser_like_create.parse_args()
+            args["user_id"] = kwargs["user_info"]["id"]
+            result = update_user_like_phrasal_verb(args)
+            if result:
+                return self.send(status=200)
+            else:
+                return self.send(status=400)
         except:
             traceback.print_exc()
             return self.send(status=500)
