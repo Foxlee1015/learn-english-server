@@ -101,12 +101,11 @@ def delete_phrasal_verbs(args):
         traceback.print_exc()
         return False
 
-def get_phrasal_verbs_like(phrasal_verb_id=None, user_id=None):
-    query = {"active" : 1}
-    if user_id is None:
-        query["phrasalVerbId"] = phrasal_verb_id
-    else:
-        query["userId"] = user_id
+def get_phrasal_verbs_like(phrasal_verb_id):
+    query = {
+        "phrasalVerbId": phrasal_verb_id,
+        "active" : 1
+    }
 
     return mongo.db.user_like_phrasal_verb.find(query).count()
 

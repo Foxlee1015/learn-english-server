@@ -75,13 +75,12 @@ def delete_idiom(args):
         traceback.print_exc()
         return False
 
-def get_idioms_like(idiom_id=None, user_id=None):
-    query = {"active" : 1}
-    if user_id is None:
-        query["idiomId"] = idiom_id
-    else:
-        query["userId"] = user_id
-
+def get_idioms_like_count(idiom_id):
+    query = {
+        "idiomId": idiom_id,
+        "active" : 1
+    }
+        
     return mongo.db.user_like_idiom.find(query).count()
 
 
@@ -191,7 +190,7 @@ class IdiomLikes(CustomResource):
     def get(self):
         try:
             args = parser_idiom_id.parse_args()
-            count = get_idioms_like(idiom_id=args["idiom_id"])
+            count = get_idioms_like_count(args["idiom_id"])
 
             return self.send(status=200, result=count)
         except:
