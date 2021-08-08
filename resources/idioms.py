@@ -90,8 +90,7 @@ def check_user_like(idiom_id, user_id):
         "active": 1
     }
 
-    return mongo.db.user_like_phrasal_verb.find_one(query)
-
+    return mongo.db.user_like_idiom.find_one(query)
 
 
 def update_user_like_idiom(args):
