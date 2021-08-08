@@ -83,6 +83,16 @@ def get_idioms_like_count(idiom_id):
         
     return mongo.db.user_like_idiom.find(query).count()
 
+def check_user_like(idiom_id, user_id):
+    query = {
+        "idiomId": idiom_id,
+        "userId" : user_id,
+        "active": 1
+    }
+
+    return mongo.db.user_like_phrasal_verb.find_one(query)
+
+
 
 def update_user_like_idiom(args):
     try:
@@ -124,8 +134,10 @@ parser_delete.add_argument('expression', type=str, help='Expression', location="
 parser_header = reqparse.RequestParser()
 parser_header.add_argument('Authorization', type=str, required=True, location='headers')
 
-parser_idiom_id = reqparse.RequestParser()
-parser_idiom_id.add_argument('idiom_id', type=str, help='_id', required=True, location="args")
+parser_get_idiom_like = reqparse.RequestParser()
+parser_get_idiom_like.add_argument('idiom_id', type=str, help='_id', required=True, location="args")
+parser_get_idiom_like.add_argument('Authorization', type=str, location='headers')
+
 
 parser_like_create = reqparse.RequestParser()
 parser_like_create.add_argument('idiom_id', type=str, required=True, help='Idiom id')
@@ -186,13 +198,21 @@ class Idioms(CustomResource):
 @api.route('/likes')
 class IdiomLikes(CustomResource):
     @api.doc('idiom likes')
-    @api.expect(parser_idiom_id)
-    def get(self):
+    @api.expect(parser_get_idiom_like)
+    @token_required
+    def get(self, **kwargs):
         try:
-            args = parser_idiom_id.parse_args()
-            count = get_idioms_like_count(args["idiom_id"])
+            result = {
+                "count": 0,
+                "active" : 0
+            }
+            args = parser_get_idiom_like.parse_args()
+            result["count"] = get_idioms_like_count(args["idiom_id"])
+            if kwargs["user_info"] is not None:
+                if check_user_like(args["idiom_id"],kwargs["user_info"]["id"]):
+                    result["active"] = 1
 
-            return self.send(status=200, result=count)
+            return self.send(status=200, result=result)
         except:
             traceback.print_exc()
             return self.send(status=500)

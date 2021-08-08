@@ -109,6 +109,17 @@ def get_phrasal_verbs_like(phrasal_verb_id):
 
     return mongo.db.user_like_phrasal_verb.find(query).count()
 
+
+def check_user_like(phrasal_verb_id, user_id):
+    query = {
+        "phrasalVerbId": phrasal_verb_id,
+        "userId" : user_id,
+        "active": 1
+    }
+
+    return mongo.db.user_like_phrasal_verb.find_one(query)
+
+
 def update_user_like_phrasal_verb(args):
     try:
         search_query = {
@@ -151,8 +162,9 @@ parser_delete.add_argument('particle', type=str, help='Particle', location="args
 parser_header = reqparse.RequestParser()
 parser_header.add_argument('Authorization', type=str, required=True, location='headers')
 
-parser_phrasal_verb_id = reqparse.RequestParser()
-parser_phrasal_verb_id.add_argument('phrasal_verb_id', type=str, help='_id', required=True, location="args")
+parser_get_phrasal_verb_like = reqparse.RequestParser()
+parser_get_phrasal_verb_like.add_argument('phrasal_verb_id', type=str, help='_id', required=True, location="args")
+parser_get_phrasal_verb_like.add_argument('Authorization', type=str, location='headers')
 
 parser_like_create = reqparse.RequestParser()
 parser_like_create.add_argument('phrasal_verb_id', type=str, required=True, help='Idiom id')
@@ -231,13 +243,21 @@ class PhrasalVerb(CustomResource):
 @api.route('/likes')
 class PhrasalVerbLikes(CustomResource):
     @api.doc('phrasal_verb')
-    @api.expect(parser_phrasal_verb_id)
-    def get(self):
+    @api.expect(parser_get_phrasal_verb_like)
+    @token_required
+    def get(self, **kwargs):
         try:
-            args = parser_phrasal_verb_id.parse_args()
-            count = get_phrasal_verbs_like(args["phrasal_verb_id"])
+            result = {
+                "count": 0,
+                "active" : 0
+            }
+            args = parser_get_phrasal_verb_like.parse_args()
+            result["count"] = get_phrasal_verbs_like(args["phrasal_verb_id"])
+            if kwargs["user_info"] is not None:
+                if check_user_like(args["phrasal_verb_id"],kwargs["user_info"]["id"]):
+                    result["active"] = 1
 
-            return self.send(status=200, result=count)
+            return self.send(status=200, result=result)
         except:
             traceback.print_exc()
             return self.send(status=500)
