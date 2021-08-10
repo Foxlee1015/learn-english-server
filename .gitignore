@@ -1,6 +1,6 @@
-venv/*
-logs/*
-__pychche__/*
+flask/venv/*
+flask/logs/*
+flask/__pychche__/*
 
 *.pyc
 .env

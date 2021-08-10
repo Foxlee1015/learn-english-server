@@ -2,17 +2,25 @@ version: "3"
 
 services:
   flask_app:
-    container_name: learn_english
-    networks:
-      - nginx_network
+    container_name: flask_app
+    # networks:
+    #   - nginx_network
     restart: always
-    build: ./
+    build: ./flask
     volumes:
-      - ./logs:/usr/src/flask_app/logs
+      - ./flask/logs:/usr/src/flask_app/logs
     ports:
       - "16981:8001"
     command: gunicorn -c ./gunicorn.conf.py 'app:create_app()'
 
-networks:
-  nginx_network:
-    external: true
+  nginx:
+    container_name: nginx
+    restart: always
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - flask_app
+# networks:
+#   nginx_network:
+#     external: true
