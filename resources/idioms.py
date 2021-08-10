@@ -5,9 +5,9 @@ from bson import ObjectId
 from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
-from core.resource import CustomResource, response, json_serializer, json_serializer_all_datetime_keys
-from core.utils import check_if_only_int_numbers_exist, token_required, parse_given_str_datetime_or_current_datetime
-from core.mongo_db import mongo, gen_query
+from core.resource import CustomResource
+from core.utils import token_required
+from core.mongo_db import mongo, gen_query, stringify_docs, gen_active_like_query
 
 api = Namespace('idioms', description='Idioms related operations')
 
@@ -29,16 +29,7 @@ def get_idioms(search_key=None, full_search=0, exact=0):
                 ]
             else:
                 query = gen_query("expression", search_key, exact)
-        for item in mongo.db.idioms.find(query):
-            idiom = {}
-            for key, value in item.items():
-                if key == '_id': 
-                    value = str(value)
-                if key == 'created_time': 
-                    value = json_serializer(value)
-                
-                idiom[key] = value
-            idioms.append(idiom)
+        idioms = stringify_docs(mongo.db.idioms.find(query))
         return idioms
     except:
         traceback.print_exc()
@@ -61,14 +52,14 @@ def add_idiom(args):
 
 
 def delete_idiom(args):
-    query = {}
-    if args["_id"] is not None:
-        query["_id"] = ObjectId(args["_id"])
-        
-    if args["expression"] is not None:
-        query["expression"] = args["expression"]
-        
     try:
+        query = {}
+        if args["_id"] is not None:
+            query["_id"] = ObjectId(args["_id"])
+            
+        if args["expression"] is not None:
+            query["expression"] = args["expression"]
+            
         mongo.db.idioms.delete_many(query)
         return True
     except:
@@ -76,22 +67,12 @@ def delete_idiom(args):
         return False
 
 def get_idioms_like_count(idiom_id):
-    query = {
-        "idiomId": idiom_id,
-        "active" : 1
-    }
-        
+    query = gen_active_like_query("idiomId", idiom_id)
     return mongo.db.user_like_idiom.find(query).count()
 
 def check_user_like(idiom_id, user_id):
-    query = {
-        "idiomId": idiom_id,
-        "userId" : user_id,
-        "active": 1
-    }
-
+    query = gen_active_like_query("idiomId", idiom_id, user_id=user_id)
     return mongo.db.user_like_idiom.find_one(query)
-
 
 def update_user_like_idiom(args):
     try:
@@ -99,13 +80,8 @@ def update_user_like_idiom(args):
             "userId": args.user_id,
             "idiomId": args.idiom_id,
         }
-
-        user_like = {
-            "userId": args.user_id,
-            "idiomId": args.idiom_id,
-            "active": args.like
-        }
-    
+        user_like = search_query.copy()
+        user_like["active"] = args.like
         mongo.db.user_like_idiom.replace_one(search_query, user_like, upsert=True)
         return True
     except:

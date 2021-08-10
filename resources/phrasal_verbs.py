@@ -5,9 +5,9 @@ from bson import ObjectId
 from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
-from core.resource import CustomResource, response, json_serializer, json_serializer_all_datetime_keys
-from core.utils import check_if_only_int_numbers_exist, token_required, parse_given_str_datetime_or_current_datetime
-from core.mongo_db import mongo, gen_query
+from core.resource import CustomResource
+from core.utils import token_required
+from core.mongo_db import mongo, gen_query, gen_random_docs_query, gen_not_empty_array_query, gen_match_and_query, stringify_docs, gen_active_like_query
 
 api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 
@@ -18,13 +18,14 @@ def get_only_verbs():
 def get_random_verbs(count):
     random_verbs = []
     try:
-        for item in mongo.db.phrasal_verbs.aggregate([{"$sample": {"size":count}}]):
-            random_verb = {}
-            for key, value in item.items():
-                if key == '_id': 
-                    value = str(value)
-                random_verb[key] = value
-            random_verbs.append(random_verb)
+        match_and_filters = [
+            gen_not_empty_array_query("definitions"),
+            gen_not_empty_array_query("sentences")]
+        query = [
+            gen_random_docs_query(count),
+            gen_match_and_query(match_and_filters)
+        ]
+        random_verbs = stringify_docs(mongo.db.phrasal_verbs.aggregate(query))
         return random_verbs
     except:
         traceback.print_exc()
@@ -44,20 +45,12 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0):
                 ]
             else:
                 query = gen_query("verb", search_key, exact)
-        for item in mongo.db.phrasal_verbs.find(query):
-            phrasal_verb = {}
-            for key, value in item.items():
-                if key == '_id': 
-                    value = str(value)
-                if key == 'created_time':
-                    value = json_serializer(value)
-                
-                phrasal_verb[key] = value
-            phrasal_verbs.append(phrasal_verb)
+        phrasal_verbs = stringify_docs(mongo.db.phrasal_verbs.find(query))
         return phrasal_verbs
     except:
         traceback.print_exc()
         return phrasal_verbs
+
 
 def upsert_phrasal_verbs(args):
     try:
@@ -102,21 +95,12 @@ def delete_phrasal_verbs(args):
         return False
 
 def get_phrasal_verbs_like(phrasal_verb_id):
-    query = {
-        "phrasalVerbId": phrasal_verb_id,
-        "active" : 1
-    }
-
+    query = gen_active_like_query("phrasalVerbId", phrasal_verb_id)
     return mongo.db.user_like_phrasal_verb.find(query).count()
 
 
 def check_user_like(phrasal_verb_id, user_id):
-    query = {
-        "phrasalVerbId": phrasal_verb_id,
-        "userId" : user_id,
-        "active": 1
-    }
-
+    query = gen_active_like_query("phrasalVerbId", phrasal_verb_id, user_id=user_id)
     return mongo.db.user_like_phrasal_verb.find_one(query)
 
 
@@ -126,12 +110,8 @@ def update_user_like_phrasal_verb(args):
             "userId": args.user_id,
             "phrasalVerbId": args.phrasal_verb_id,
         }
-
-        user_like = {
-            "userId": args.user_id,
-            "phrasalVerbId": args.phrasal_verb_id,
-            "active": args.like
-        }
+        user_like = search_query.copy()
+        user_like["active"] = args.like
     
         mongo.db.user_like_phrasal_verb.replace_one(search_query, user_like, upsert=True)
         return True
