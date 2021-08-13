@@ -4,7 +4,7 @@ import traceback
 from flask_restplus import Namespace, reqparse
 
 from core.db import redis_store, get_user
-from .users import get_user_if_user_verified
+from .users import get_user_if_verified
 from core.utils import token_required, random_string_digits
 from core.resource import CustomResource
 
@@ -27,7 +27,7 @@ class Session(CustomResource):
         '''Create a session after verifying user info '''
         try:
             args = parser_create.parse_args()
-            user = get_user_if_user_verified(args["username"], args["password"])
+            user = get_user_if_verified(args["username"], args["password"])
             if user:
                 session_id = random_string_digits(30)
                 redis_store.set(name=session_id, value=user["id"], ex=60*60*24)
@@ -40,7 +40,7 @@ class Session(CustomResource):
                 }
                 return self.send(status=201, result=result)
             else:
-                return self.send(status=400)
+                return self.send(status=400, message="Check your id and password.")
         except:
             traceback.print_exc()
             return self.send(status=500)

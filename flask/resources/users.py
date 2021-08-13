@@ -30,7 +30,7 @@ def _create_user(name, email, password, user_type=2):
         traceback.print_exc()
         return None
 
-def get_user_if_user_verified(name, password):
+def get_user_if_verified(name, password):
     try:
         user_info = get_user_hashed_password_with_user_id(name)
         if user_info:
