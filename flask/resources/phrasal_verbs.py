@@ -50,7 +50,7 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
                     gen_query("sentences", search_key, exact),
                 ]
             else:
-                query = gen_query("verb", search_key, exact)
+                query.update(gen_query("verb", search_key, exact))
         phrasal_verbs = stringify_docs(mongo.db.phrasal_verbs.find(query))
         return phrasal_verbs
     except:

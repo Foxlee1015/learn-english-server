@@ -27,7 +27,6 @@ def get_random_idioms(count, admin=False):
             gen_not_empty_array_query("sentences"),
             gen_restrict_access_query(admin)
         ]
-
         query = [
             gen_match_and_query(match_and_filters),
             gen_random_docs_query(count),
@@ -51,7 +50,7 @@ def get_idioms(search_key=None, full_search=0, exact=0, admin=False):
                     gen_query("sentences", search_key, exact),
                 ]
             else:
-                query = gen_query("expression", search_key, exact)
+                query.update(gen_query("expression", search_key, exact))
         idioms = stringify_docs(mongo.db.idioms.find(query))
         return idioms
     except:
