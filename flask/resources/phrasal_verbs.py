@@ -222,10 +222,13 @@ class PhrasalVerbs(CustomResource):
 @api.route('/<string:verb>')
 class PhrasalVerb(CustomResource):
     @api.doc('phrasal_verb')
-    def get(self,verb):
+    @api.expect(parser_header)
+    @token_required
+    def get(self, verb, **kwargs):
         '''Get a phrasal verb'''
         try:
-            result = get_phrasal_verbs(search_key=verb)
+            admin = self.is_admin(kwargs["user_info"])
+            result = get_phrasal_verbs(search_key=verb, admin=admin)
 
             return self.send(status=200, result=result)
         except:
