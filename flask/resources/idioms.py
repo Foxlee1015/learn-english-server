@@ -12,11 +12,8 @@ from core.mongo_db import mongo, gen_match_and_query, gen_random_docs_query, gen
 api = Namespace('idioms', description='Idioms related operations')
 
 
-def get_only_idioms(admin=False):
-    field = "expression"
-    query = gen_restrict_access_query(admin)
-    idioms = mongo.db.idioms.distinct(field, query);
-    return idioms
+def get_only_idioms():
+    return mongo.db.idioms.distinct("expression")
 
 
 def get_random_idioms(count, admin=False):
@@ -155,7 +152,7 @@ class Idioms(CustomResource):
 
             args = parser_search_idiom.parse_args()
             if args['only_idiom'] == 1:
-                result = get_only_idioms(admin=admin)
+                result = get_only_idioms()
             elif args['random_count'] is not None:
                 result = get_random_idioms(count=args['random_count'], admin=admin)
             else:

@@ -21,8 +21,9 @@ def get_random_verbs(count, admin=False):
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
             gen_not_empty_array_query("sentences"),
-            gen_restrict_access_query(admin)
         ]
+        if not admin:
+            match_and_filters.append(gen_restrict_access_query())
 
         query = [
             gen_match_and_query(match_and_filters),
@@ -38,7 +39,9 @@ def get_random_verbs(count, admin=False):
 def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
     phrasal_verbs = []
     try:
-        query = gen_restrict_access_query(admin)
+        query = {}
+        if not admin:
+            query = gen_restrict_access_query(admin)
         if search_key is not None:
             if full_search:
                 query["$or"] = [
