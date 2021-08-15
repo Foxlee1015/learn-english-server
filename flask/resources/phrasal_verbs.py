@@ -7,23 +7,28 @@ from flask_restplus import Namespace, Resource, fields, reqparse
 
 from core.resource import CustomResource
 from core.utils import token_required
-from core.mongo_db import mongo, gen_query, gen_random_docs_query, gen_not_empty_array_query, gen_match_and_query, stringify_docs, gen_active_like_query
+from core.mongo_db import mongo, gen_restrict_access_query, gen_query, gen_random_docs_query, gen_not_empty_array_query, gen_match_and_query, stringify_docs, gen_active_like_query
 
 api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 
-def get_only_verbs():
-    verbs = mongo.db.phrasal_verbs.distinct("verb");
+def get_only_verbs(admin=False):
+    field = "verb"
+    query = gen_restrict_access_query(admin)
+    verbs = mongo.db.phrasal_verbs.distinct(field, query);
     return verbs
 
-def get_random_verbs(count):
+def get_random_verbs(count, admin=False):
     random_verbs = []
     try:
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
-            gen_not_empty_array_query("sentences")]
+            gen_not_empty_array_query("sentences"),
+            gen_restrict_access_query(admin)
+        ]
+
         query = [
+            gen_match_and_query(match_and_filters),
             gen_random_docs_query(count),
-            gen_match_and_query(match_and_filters)
         ]
         random_verbs = stringify_docs(mongo.db.phrasal_verbs.aggregate(query))
         return random_verbs
@@ -32,14 +37,15 @@ def get_random_verbs(count):
         return random_verbs
 
 
-def get_phrasal_verbs(search_key=None, full_search=0, exact=0):
+def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
     phrasal_verbs = []
     try:
-        query = {}
+        query = gen_restrict_access_query(admin)
         if search_key is not None:
             if full_search:
                 query["$or"] = [
                     gen_query("verb", search_key, exact),
+                    gen_query("particle", search_key, exact),
                     gen_query("definitions", search_key, exact),
                     gen_query("sentences", search_key, exact),
                 ]
@@ -129,7 +135,7 @@ parser_create.add_argument('is_public', type=int, help='Public')
 
 parser_search_verb = reqparse.RequestParser()
 parser_search_verb.add_argument('only_verb', type=int, location="args", help="Return only verbs when 1")
-parser_search_verb.add_argument('random_verb_count', type=int, location="args", help="Get random verbs")
+parser_search_verb.add_argument('random_count', type=int, location="args", help="Get random verbs")
 parser_search_verb.add_argument('search_key', type=str, help='To search in verb field', location="args")
 parser_search_verb.add_argument('full_search', type=int, help='Search in indexes(all fields) when 1', location="args")
 parser_search_verb.add_argument('exact', type=int, help='Search exact search key when 1', location="args")
@@ -140,7 +146,7 @@ parser_delete.add_argument('verb', type=str, help='Verb', location="args")
 parser_delete.add_argument('particle', type=str, help='Particle', location="args")
 
 parser_header = reqparse.RequestParser()
-parser_header.add_argument('Authorization', type=str, required=True, location='headers')
+parser_header.add_argument('Authorization', type=str, location='headers')
 
 parser_get_phrasal_verb_like = reqparse.RequestParser()
 parser_get_phrasal_verb_like.add_argument('phrasal_verb_id', type=str, help='_id', required=True, location="args")
@@ -154,18 +160,23 @@ parser_like_create.add_argument('like', type=int, required=True, help='like when
 @api.route('/')
 class PhrasalVerbs(CustomResource):
     @api.doc('list of phrasal_verbs')
-    @api.expect(parser_search_verb)
-    def get(self):
+    @api.expect(parser_search_verb, parser_header)
+    @token_required
+    def get(self, **kwargs):
         '''List all phrasal verbs'''
         try:
             result = []
+            admin = self.is_admin(kwargs["user_info"])
+
             args = parser_search_verb.parse_args()
             if args['only_verb'] == 1:
-                result = get_only_verbs()
-            elif args['random_verb_count'] is not None:
-                result = get_random_verbs(count=args['random_verb_count'])
+                result = get_only_verbs(admin=admin)
+            elif args['random_count'] is not None:
+                result = get_random_verbs(count=args['random_count'], admin=admin)
             else:
-                result = get_phrasal_verbs(search_key=args["search_key"], full_search=args["full_search"], exact=args["exact"])
+                result = get_phrasal_verbs(
+                    search_key=args["search_key"], full_search=args["full_search"], 
+                    exact=args["exact"], admin=admin)
             
             return self.send(status=200, result=result)
         except:
