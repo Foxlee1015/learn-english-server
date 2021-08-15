@@ -11,10 +11,8 @@ from core.mongo_db import mongo, gen_restrict_access_query, gen_query, gen_rando
 
 api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 
-def get_only_verbs(admin=False):
-    field = "verb"
-    query = gen_restrict_access_query(admin)
-    verbs = mongo.db.phrasal_verbs.distinct(field, query);
+def get_unique_values(field):
+    verbs = mongo.db.phrasal_verbs.distinct(field)
     return verbs
 
 def get_random_verbs(count, admin=False):
@@ -135,6 +133,7 @@ parser_create.add_argument('is_public', type=int, help='Public')
 
 parser_search_verb = reqparse.RequestParser()
 parser_search_verb.add_argument('only_verb', type=int, location="args", help="Return only verbs when 1")
+parser_search_verb.add_argument('only_particle', type=int, location="args", help="Return only particles when 1")
 parser_search_verb.add_argument('random_count', type=int, location="args", help="Get random verbs")
 parser_search_verb.add_argument('search_key', type=str, help='To search in verb field', location="args")
 parser_search_verb.add_argument('full_search', type=int, help='Search in indexes(all fields) when 1', location="args")
@@ -170,7 +169,9 @@ class PhrasalVerbs(CustomResource):
 
             args = parser_search_verb.parse_args()
             if args['only_verb'] == 1:
-                result = get_only_verbs(admin=admin)
+                result = get_unique_values('verb')
+            elif args['only_particle'] == 1:
+                result = get_unique_values('particle')
             elif args['random_count'] is not None:
                 result = get_random_verbs(count=args['random_count'], admin=admin)
             else:
