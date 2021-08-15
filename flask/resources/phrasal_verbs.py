@@ -41,7 +41,7 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
     try:
         query = {}
         if not admin:
-            query = gen_restrict_access_query(admin)
+            query = gen_restrict_access_query()
         if search_key is not None:
             if full_search:
                 query["$or"] = [

@@ -22,8 +22,9 @@ def get_random_idioms(count, admin=False):
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
             gen_not_empty_array_query("sentences"),
-            gen_restrict_access_query(admin)
         ]
+        if not admin:
+            match_and_filters.append(gen_restrict_access_query())
         query = [
             gen_match_and_query(match_and_filters),
             gen_random_docs_query(count),
@@ -38,7 +39,9 @@ def get_random_idioms(count, admin=False):
 def get_idioms(search_key=None, full_search=0, exact=0, admin=False):
     idioms = []
     try:
-        query = gen_restrict_access_query(admin)
+        query = {}
+        if not admin:
+            query = gen_restrict_access_query()
         if search_key is not None:
             if full_search:
                 query["$or"] = [
