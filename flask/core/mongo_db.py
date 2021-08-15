@@ -57,3 +57,7 @@ def gen_active_like_query(field_key, field_value, user_id=None):
         query["userId"] = user_id
 
     return query
+
+def gen_restrict_access_query(admin):
+    is_public = 0 if admin else 1
+    return {"is_public": is_public}
