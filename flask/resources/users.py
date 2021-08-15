@@ -118,10 +118,8 @@ parser_create.add_argument('password_confirm', type=str, required=True, location
 parser_delete = reqparse.RequestParser()
 parser_delete.add_argument('ids', type=str, required=True, action='split')
 
-
 parser_header = reqparse.RequestParser()
 parser_header.add_argument('Authorization', type=str, required=True, location='headers')
-
 
 @api.route('/')
 class Users(CustomResource):
@@ -205,19 +203,33 @@ class User(CustomResource):
         return self.send(status=200, result=user)
 
 
-@api.route('/likes')
-class UserLikes(CustomResource):
-    @api.doc('get_user_likes')
+@api.route('/idioms')
+class UserLikesIdioms(CustomResource):
+    @api.doc('get_user_idioms_likes')
     @api.expect(parser_header)
     @token_required
     def get(self, **kwargs):
         try:
             if kwargs["user_info"] is None:
                 return self.send(status=401)
-            result = {
-                "idioms": get_user_idioms(kwargs["user_info"]["id"]),
-                "phrassal_verbs": get_user_phrasal_verbs(kwargs["user_info"]["id"])
-            }
+            result = get_user_idioms(kwargs["user_info"]["id"])
+            return self.send(status=200, result=result)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+
+
+@api.route('/phrasal-verbs')
+class UserLikesPhrasalVerbs(CustomResource):
+    @api.doc('get_user_phrasal_verbs_likes')
+    @api.expect(parser_header)
+    @token_required
+    def get(self, **kwargs):
+        try:
+            if kwargs["user_info"] is None:
+                return self.send(status=401)
+            
+            result = get_user_phrasal_verbs(kwargs["user_info"]["id"])
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
