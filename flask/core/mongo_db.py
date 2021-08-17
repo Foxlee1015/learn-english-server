@@ -30,7 +30,7 @@ def gen_user_like_query(user_id):
         "active" : 1
     }
 
-def gen_include_query(field, values):
+def gen_in_query(field=None, values=None):
     return {
         field : {
             "$in": values

@@ -6,7 +6,7 @@ from flask_restplus import Namespace, Resource, fields, reqparse
 from core.db import insert_user, get_user, get_users, delete_users, backup_db, get_user_hashed_password_with_user_id
 from core.resource import CustomResource, json_serializer, json_serializer_all_datetime_keys
 from core.utils import token_required, verify_password
-from core.mongo_db import mongo, gen_user_like_query, stringify_docs, gen_include_query
+from core.mongo_db import mongo, gen_user_like_query, stringify_docs, gen_in_query
 
 
 api = Namespace('users', description='Users related operations')
@@ -59,7 +59,7 @@ def get_user_idioms(user_id):
             for key, value in item.items():
                 if key == "idiomId":
                     idioms_ids.append(ObjectId(value))
-        idioms_query = gen_include_query(field="_id", values=idioms_ids)
+        idioms_query = gen_in_query(field="_id", values=idioms_ids)
         idioms = stringify_docs(mongo.db.idioms.find(idioms_query))
         return idioms
     
@@ -85,7 +85,7 @@ def get_user_phrasal_verbs(user_id):
             for key, value in item.items():
                 if key == "phrasalVerbId":
                     phrasal_verbs_ids.append(ObjectId(value))
-        phrasal_verbs_query = gen_include_query(field="_id", values=phrasal_verbs_ids)
+        phrasal_verbs_query = gen_in_query(field="_id", values=phrasal_verbs_ids)
         phrasal_verbs = stringify_docs(mongo.db.phrasal_verbs.find(phrasal_verbs_query))
         return phrasal_verbs
     
