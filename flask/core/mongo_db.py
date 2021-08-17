@@ -24,6 +24,18 @@ def gen_query(field, search_key, exact=0, insensitive_case=True):
     
     return query
 
+def gen_user_like_query(user_id):
+    return {
+        "userId": user_id,
+        "active" : 1
+    }
+
+def gen_include_query(field, values):
+    return {
+        field : {
+            "$in": values
+        }
+    }
 
 def gen_random_docs_query(count):
     return {"$sample": {"size":count}}

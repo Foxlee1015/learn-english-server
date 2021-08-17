@@ -6,7 +6,7 @@ from flask_restplus import Namespace, Resource, fields, reqparse
 from core.db import insert_user, get_user, get_users, delete_users, backup_db, get_user_hashed_password_with_user_id
 from core.resource import CustomResource, json_serializer, json_serializer_all_datetime_keys
 from core.utils import token_required, verify_password
-from core.mongo_db import mongo
+from core.mongo_db import mongo, gen_user_like_query, stringify_docs, gen_include_query
 
 
 api = Namespace('users', description='Users related operations')
@@ -30,6 +30,7 @@ def _create_user(name, email, password, user_type=2):
         traceback.print_exc()
         return None
 
+
 def get_user_if_verified(name, password):
     try:
         user_info = get_user_hashed_password_with_user_id(name)
@@ -41,34 +42,25 @@ def get_user_if_verified(name, password):
         traceback.print_exc()
         return None
 
+def get_user_idioms_count(user_id):
+    try:
+        query = gen_user_like_query(user_id)
+        return mongo.db.user_like_idiom.find(query).count()
+    except:
+        traceback.print_exc()
+        return None
 
 def get_user_idioms(user_id):
     idioms = []
     try:
-        likes_query = {
-            "userId": user_id,
-            "active" : 1
-        }
+        likes_query = gen_user_like_query(user_id)
         idioms_ids = []
         for item in mongo.db.user_like_idiom.find(likes_query):
             for key, value in item.items():
                 if key == "idiomId":
                     idioms_ids.append(ObjectId(value))
-        idioms_query = {
-            "_id" : {
-                "$in": idioms_ids
-            }
-        }
-        for item in mongo.db.idioms.find(idioms_query):
-            idiom = {}
-            for key, value in item.items():
-                if key == '_id': 
-                    value = str(value)
-                if key == 'created_time': 
-                    value = json_serializer(value)
-
-                idiom[key] = value
-            idioms.append(idiom)
+        idioms_query = gen_include_query(field="_id", values=idioms_ids)
+        idioms = stringify_docs(mongo.db.idioms.find(idioms_query))
         return idioms
     
     except:
@@ -76,33 +68,25 @@ def get_user_idioms(user_id):
         return idioms
 
 
+def get_user_phrasal_verbs_count(user_id):
+    try:
+        query = gen_user_like_query(user_id)
+        return mongo.db.user_like_phrasal_verb.find(query).count()
+    except:
+        traceback.print_exc()
+        return None
+
 def get_user_phrasal_verbs(user_id):
     phrasal_verbs = []
     try:
-        likes_query = {
-            "userId": user_id,
-            "active" : 1
-        }
+        likes_query = gen_user_like_query(user_id)
         phrasal_verbs_ids = []
         for item in mongo.db.user_like_phrasal_verb.find(likes_query):
             for key, value in item.items():
                 if key == "phrasalVerbId":
                     phrasal_verbs_ids.append(ObjectId(value))
-        phrasal_verbs_query = {
-            "_id" : {
-                "$in": phrasal_verbs_ids
-            }
-        }
-        for item in mongo.db.phrasal_verbs.find(phrasal_verbs_query):
-            phrasal_verb = {}
-            for key, value in item.items():
-                if key == '_id': 
-                    value = str(value)
-                if key == 'created_time': 
-                    value = json_serializer(value)
-
-                phrasal_verb[key] = value
-            phrasal_verbs.append(phrasal_verb)
+        phrasal_verbs_query = gen_include_query(field="_id", values=phrasal_verbs_ids)
+        phrasal_verbs = stringify_docs(mongo.db.phrasal_verbs.find(phrasal_verbs_query))
         return phrasal_verbs
     
     except:
@@ -120,6 +104,9 @@ parser_delete.add_argument('ids', type=str, required=True, action='split')
 
 parser_header = reqparse.RequestParser()
 parser_header.add_argument('Authorization', type=str, required=True, location='headers')
+
+parser_likes = reqparse.RequestParser()
+parser_likes.add_argument('count', type=int, location='args')
 
 @api.route('/')
 class Users(CustomResource):
@@ -206,13 +193,19 @@ class User(CustomResource):
 @api.route('/idioms')
 class UserLikesIdioms(CustomResource):
     @api.doc('get_user_idioms_likes')
-    @api.expect(parser_header)
+    @api.expect(parser_header, parser_likes)
     @token_required
     def get(self, **kwargs):
         try:
             if kwargs["user_info"] is None:
                 return self.send(status=401)
-            result = get_user_idioms(kwargs["user_info"]["id"])
+            user_id = kwargs["user_info"]["id"]
+
+            args = parser_likes.parse_args()
+            if args['count'] == 1:
+                result = get_user_idioms_count(user_id)
+            else:
+                result = get_user_idioms(user_id)
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
@@ -222,14 +215,19 @@ class UserLikesIdioms(CustomResource):
 @api.route('/phrasal-verbs')
 class UserLikesPhrasalVerbs(CustomResource):
     @api.doc('get_user_phrasal_verbs_likes')
-    @api.expect(parser_header)
+    @api.expect(parser_header, parser_likes)
     @token_required
     def get(self, **kwargs):
         try:
             if kwargs["user_info"] is None:
                 return self.send(status=401)
-            
-            result = get_user_phrasal_verbs(kwargs["user_info"]["id"])
+            user_id = kwargs["user_info"]["id"]
+
+            args = parser_likes.parse_args()
+            if args['count'] == 1:
+                result = get_user_phrasal_verbs_count(user_id)
+            else:         
+                result = get_user_phrasal_verbs(user_id)
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
