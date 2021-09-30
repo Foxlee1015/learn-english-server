@@ -11,16 +11,13 @@ from core.mongo_db import mongo, gen_restrict_access_query, gen_query, gen_rando
 
 api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 
-def get_unique_values(field):
-    verbs = mongo.db.phrasal_verbs.distinct(field)
-    return verbs
+def get_all_unique_field_values(field=None):
+    return mongo.db.phrasal_verbs.distinct(field)
 
-def get_unique_public_values(field):
-    verbs = mongo.db.phrasal_verbs.distinct(field, {"is_public":1})
-    return verbs
+def get_all_unique_field_public_values(field=None):
+    return mongo.db.phrasal_verbs.distinct(field, {"is_public":1})
 
 def get_random_verbs(count, admin=False):
-    random_verbs = []
     try:
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
@@ -28,7 +25,6 @@ def get_random_verbs(count, admin=False):
         ]
         if not admin:
             match_and_filters.append(gen_restrict_access_query())
-
         query = [
             gen_match_and_query(match_and_filters),
             gen_random_docs_query(count),
@@ -37,7 +33,7 @@ def get_random_verbs(count, admin=False):
         return random_verbs
     except:
         traceback.print_exc()
-        return random_verbs
+        return None
 
 
 def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
@@ -177,9 +173,9 @@ class PhrasalVerbs(CustomResource):
             args = parser_search_verb.parse_args()
             if args['only_verb'] == 1:
                 if admin:
-                    result = get_unique_values('verb')
+                    result = get_all_unique_field_values(field='verb')
                 else:
-                    result = get_unique_public_values('verb')
+                    result = get_all_unique_field_public_values(field='verb')
             elif args['only_particle'] == 1:
                 result = get_unique_values('particle')
             elif args['random_count'] is not None:
