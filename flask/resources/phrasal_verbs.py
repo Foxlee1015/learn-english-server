@@ -7,22 +7,35 @@ from flask_restplus import Namespace, Resource, fields, reqparse
 
 from core.resource import CustomResource
 from core.utils import token_required
-from core.mongo_db import mongo, gen_restrict_access_query, gen_query, gen_random_docs_query, gen_not_empty_array_query, gen_match_and_query, stringify_docs, gen_active_like_query
+from core.mongo_db import (
+    mongo,
+    gen_restrict_access_query,
+    gen_query,
+    gen_random_docs_query,
+    gen_not_empty_array_query,
+    gen_match_and_query,
+    stringify_docs,
+    gen_collection_active_like_query,
+    gen_user_active_like_query,
+)
 
-api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
+api = Namespace("phrasal-verbs", description="Phrasal_verbs related operations")
+
 
 def get_all_unique_field_values(field):
     return mongo.db.phrasal_verbs.distinct(field)
 
+
 def get_all_unique_field_public_values(field):
-    return mongo.db.phrasal_verbs.distinct(field, {"is_public":1})
+    return mongo.db.phrasal_verbs.distinct(field, gen_restrict_access_query())
+
 
 def get_random_public_verbs(count):
     try:
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
             gen_not_empty_array_query("sentences"),
-            gen_restrict_access_query()
+            gen_restrict_access_query(),
         ]
         query = [
             gen_match_and_query(match_and_filters),
@@ -33,6 +46,7 @@ def get_random_public_verbs(count):
     except:
         traceback.print_exc()
         return None
+
 
 def get_random_verbs(count):
     try:
@@ -80,16 +94,16 @@ def upsert_phrasal_verbs(args):
             "verb": args.verb,
             "particle": args.particle,
         }
-        
+
         phrasal_verb_data = {
             "verb": args.verb,
             "particle": args.particle,
             "definitions": args.get("definitions") or [],
             "sentences": args.get("sentences") or [],
             "difficulty": args.get("difficulty") or 0,
-            "is_public": args.get("is_public") or 0
+            "is_public": args.get("is_public") or 0,
         }
-        
+
         mongo.db.phrasal_verbs.replace_one(search_query, phrasal_verb_data, upsert=True)
         return True
 
@@ -103,10 +117,10 @@ def delete_phrasal_verbs(args):
         query = {}
         if args["_id"] is not None:
             query["_id"] = ObjectId(args["_id"])
-            
+
         if args["verb"] is not None:
             query["verb"] = args["verb"]
-        
+
         if args["particle"] is not None:
             query["particle"] = args["verb"]
         mongo.db.phrasal_verbs.delete_many(query)
@@ -116,13 +130,20 @@ def delete_phrasal_verbs(args):
         traceback.print_exc()
         return False
 
+
 def get_phrasal_verbs_like(phrasal_verb_id):
-    query = gen_active_like_query("phrasalVerbId", phrasal_verb_id)
+    query = gen_collection_active_like_query(
+        field_key="phrasalVerbId", field_value=phrasal_verb_id
+    )
     return mongo.db.user_like_phrasal_verb.find(query).count()
 
 
 def check_user_like(phrasal_verb_id, user_id):
-    query = gen_active_like_query("phrasalVerbId", phrasal_verb_id, user_id=user_id)
+    query = gen_user_active_like_query(
+        user_id,
+        field_key="phrasalVerbId",
+        field_value=phrasal_verb_id,
+    )
     return mongo.db.user_like_phrasal_verb.find_one(query)
 
 
@@ -134,102 +155,129 @@ def update_user_like_phrasal_verb(args):
         }
         user_like = search_query.copy()
         user_like["active"] = args.like
-    
-        mongo.db.user_like_phrasal_verb.replace_one(search_query, user_like, upsert=True)
+
+        mongo.db.user_like_phrasal_verb.replace_one(
+            search_query, user_like, upsert=True
+        )
         return True
     except:
         traceback.print_exc()
         return None
-        
+
+
 parser_create = reqparse.RequestParser()
-parser_create.add_argument('verb', type=str, required=True, help='Verb')
-parser_create.add_argument('particle', type=str, required=True, help='Particle(adverb or preposition')
-parser_create.add_argument('definitions', type=str, help='Definitions', action='append')
-parser_create.add_argument('sentences', type=str, help='Sentences', action='append')
-parser_create.add_argument('difficulty', type=int, help='Learning level')
-parser_create.add_argument('is_public', type=int, help='Public')
+parser_create.add_argument("verb", type=str, required=True, help="Verb")
+parser_create.add_argument(
+    "particle", type=str, required=True, help="Particle(adverb or preposition"
+)
+parser_create.add_argument("definitions", type=str, help="Definitions", action="append")
+parser_create.add_argument("sentences", type=str, help="Sentences", action="append")
+parser_create.add_argument("difficulty", type=int, help="Learning level")
+parser_create.add_argument("is_public", type=int, help="Public")
 
 parser_search_verb = reqparse.RequestParser()
-parser_search_verb.add_argument('only_verb', type=int, location="args", help="Return only verbs when 1")
-parser_search_verb.add_argument('only_particle', type=int, location="args", help="Return only particles when 1")
-parser_search_verb.add_argument('random_count', type=int, location="args", help="Get random verbs")
-parser_search_verb.add_argument('search_key', type=str, help='To search in verb field', location="args")
-parser_search_verb.add_argument('full_search', type=int, help='Search in indexes(all fields) when 1', location="args")
-parser_search_verb.add_argument('exact', type=int, help='Search exact search key when 1', location="args")
+parser_search_verb.add_argument(
+    "only_verb", type=int, location="args", help="Return only verbs when 1"
+)
+parser_search_verb.add_argument(
+    "only_particle", type=int, location="args", help="Return only particles when 1"
+)
+parser_search_verb.add_argument(
+    "random_count", type=int, location="args", help="Get random verbs"
+)
+parser_search_verb.add_argument(
+    "search_key", type=str, help="To search in verb field", location="args"
+)
+parser_search_verb.add_argument(
+    "full_search",
+    type=int,
+    help="Search in indexes(all fields) when 1",
+    location="args",
+)
+parser_search_verb.add_argument(
+    "exact", type=int, help="Search exact search key when 1", location="args"
+)
 
 parser_delete = reqparse.RequestParser()
-parser_delete.add_argument('_id', type=str, help='_id', location="args")
-parser_delete.add_argument('verb', type=str, help='Verb', location="args")
-parser_delete.add_argument('particle', type=str, help='Particle', location="args")
+parser_delete.add_argument("_id", type=str, help="_id", location="args")
+parser_delete.add_argument("verb", type=str, help="Verb", location="args")
+parser_delete.add_argument("particle", type=str, help="Particle", location="args")
 
 parser_header = reqparse.RequestParser()
-parser_header.add_argument('Authorization', type=str, location='headers')
+parser_header.add_argument("Authorization", type=str, location="headers")
 
 parser_get_phrasal_verb_like = reqparse.RequestParser()
-parser_get_phrasal_verb_like.add_argument('phrasal_verb_id', type=str, help='_id', required=True, location="args")
-parser_get_phrasal_verb_like.add_argument('Authorization', type=str, location='headers')
+parser_get_phrasal_verb_like.add_argument(
+    "phrasal_verb_id", type=str, help="_id", required=True, location="args"
+)
+parser_get_phrasal_verb_like.add_argument("Authorization", type=str, location="headers")
 
 parser_like_create = reqparse.RequestParser()
-parser_like_create.add_argument('phrasal_verb_id', type=str, required=True, help='Idiom id')
-parser_like_create.add_argument('like', type=int, required=True, help='like when 1')
+parser_like_create.add_argument(
+    "phrasal_verb_id", type=str, required=True, help="Idiom id"
+)
+parser_like_create.add_argument("like", type=int, required=True, help="like when 1")
 
 
-@api.route('/')
+@api.route("/")
 class PhrasalVerbs(CustomResource):
-    @api.doc('list of phrasal_verbs')
+    @api.doc("list of phrasal_verbs")
     @api.expect(parser_search_verb, parser_header)
     @token_required
     def get(self, **kwargs):
-        '''List all phrasal verbs'''
+        """List all phrasal verbs"""
         try:
             result = []
             admin = self.is_admin(kwargs["user_info"])
             args = parser_search_verb.parse_args()
 
-            if args['only_verb'] or args['only_particle']:
-                field = 'verb' if args['only_verb'] else  'particle'
+            if args["only_verb"] or args["only_particle"]:
+                field = "verb" if args["only_verb"] else "particle"
                 if admin:
                     result = get_all_unique_field_values(field)
                 else:
                     result = get_all_unique_field_public_values(field)
 
-            elif args['random_count'] is not None:
+            elif args["random_count"] is not None:
                 if admin:
-                    result = get_random_verbs(count=args['random_count'])
-                else:              
-                    result = get_random_public_verbs(count=args['random_count'])
+                    result = get_random_verbs(count=args["random_count"])
+                else:
+                    result = get_random_public_verbs(count=args["random_count"])
             else:
                 result = get_phrasal_verbs(
-                    search_key=args["search_key"], full_search=args["full_search"], 
-                    exact=args["exact"], admin=admin)
-            
+                    search_key=args["search_key"],
+                    full_search=args["full_search"],
+                    exact=args["exact"],
+                    admin=admin,
+                )
+
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
             return self.send(status=500)
-    
-    @api.doc('add a phrasal verb')
+
+    @api.doc("add a phrasal verb")
     @api.expect(parser_create, parser_header)
     @token_required
     def post(self, **kwargs):
-        '''Add an phrasal verb'''
+        """Add an phrasal verb"""
         try:
             if not self.is_admin(kwargs["user_info"]):
                 return self.send(status=403)
             args = parser_create.parse_args()
             result = upsert_phrasal_verbs(args)
             status = 201 if result else 400
-            
+
             return self.send(status=status)
         except:
             traceback.print_exc()
             return self.send(status=500)
 
-    @api.doc('delete a phrasal verb')
+    @api.doc("delete a phrasal verb")
     @api.expect(parser_delete, parser_header)
     @token_required
     def delete(self, **kwargs):
-        '''Delete an phrasal verb'''
+        """Delete an phrasal verb"""
         try:
             if not self.is_admin(kwargs["user_info"]):
                 return self.send(status=403)
@@ -237,19 +285,20 @@ class PhrasalVerbs(CustomResource):
             args = parser_delete.parse_args()
             result = delete_phrasal_verbs(args)
             status = 200 if result else 400
-            
+
             return self.send(status=status)
         except:
             traceback.print_exc()
             return self.send(status=500)
 
-@api.route('/<string:verb>')
+
+@api.route("/<string:verb>")
 class PhrasalVerb(CustomResource):
-    @api.doc('phrasal_verb')
+    @api.doc("phrasal_verb")
     @api.expect(parser_header)
     @token_required
     def get(self, verb, **kwargs):
-        '''Get a phrasal verb'''
+        """Get a phrasal verb"""
         try:
             admin = self.is_admin(kwargs["user_info"])
             result = get_phrasal_verbs(search_key=verb, admin=admin)
@@ -259,28 +308,26 @@ class PhrasalVerb(CustomResource):
             traceback.print_exc()
             return self.send(status=500)
 
-@api.route('/likes')
+
+@api.route("/likes")
 class PhrasalVerbLikes(CustomResource):
-    @api.doc('phrasal_verb')
+    @api.doc("phrasal_verb")
     @api.expect(parser_get_phrasal_verb_like)
     @token_required
     def get(self, **kwargs):
         try:
-            result = {
-                "count": 0,
-                "active" : 0
-            }
+            result = {"count": 0, "active": 0}
             args = parser_get_phrasal_verb_like.parse_args()
             result["count"] = get_phrasal_verbs_like(args["phrasal_verb_id"])
             if kwargs["user_info"] is not None:
-                if check_user_like(args["phrasal_verb_id"],kwargs["user_info"]["id"]):
+                if check_user_like(args["phrasal_verb_id"], kwargs["user_info"]["id"]):
                     result["active"] = 1
 
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
             return self.send(status=500)
-    
+
     @api.expect(parser_like_create, parser_header)
     @token_required
     def post(self, **kwargs):
