@@ -15,6 +15,10 @@ def get_unique_values(field):
     verbs = mongo.db.phrasal_verbs.distinct(field)
     return verbs
 
+def get_unique_public_values(field):
+    verbs = mongo.db.phrasal_verbs.distinct(field, {"is_public":1})
+    return verbs
+
 def get_random_verbs(count, admin=False):
     random_verbs = []
     try:
@@ -172,7 +176,10 @@ class PhrasalVerbs(CustomResource):
 
             args = parser_search_verb.parse_args()
             if args['only_verb'] == 1:
-                result = get_unique_values('verb')
+                if admin:
+                    result = get_unique_values('verb')
+                else:
+                    result = get_unique_public_values('verb')
             elif args['only_particle'] == 1:
                 result = get_unique_values('particle')
             elif args['random_count'] is not None:

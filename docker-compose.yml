@@ -2,7 +2,7 @@ version: "3"
 
 services:
   flask_app:
-    container_name: flask_app
+    container_name: learn_english
     # networks:
     #   - nginx_network
     restart: always
@@ -14,7 +14,7 @@ services:
     command: gunicorn -c ./gunicorn.conf.py 'app:create_app()'
 
   nginx:
-    container_name: nginx
+    container_name: learn_english_nginx
     restart: always
     build: ./nginx
     ports:
