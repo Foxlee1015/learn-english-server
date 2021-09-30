@@ -11,20 +11,35 @@ from core.mongo_db import mongo, gen_restrict_access_query, gen_query, gen_rando
 
 api = Namespace('phrasal-verbs', description='Phrasal_verbs related operations')
 
-def get_all_unique_field_values(field=None):
+def get_all_unique_field_values(field):
     return mongo.db.phrasal_verbs.distinct(field)
 
-def get_all_unique_field_public_values(field=None):
+def get_all_unique_field_public_values(field):
     return mongo.db.phrasal_verbs.distinct(field, {"is_public":1})
 
-def get_random_verbs(count, admin=False):
+def get_random_public_verbs(count):
+    try:
+        match_and_filters = [
+            gen_not_empty_array_query("definitions"),
+            gen_not_empty_array_query("sentences"),
+            gen_restrict_access_query()
+        ]
+        query = [
+            gen_match_and_query(match_and_filters),
+            gen_random_docs_query(count),
+        ]
+        random_verbs = stringify_docs(mongo.db.phrasal_verbs.aggregate(query))
+        return random_verbs
+    except:
+        traceback.print_exc()
+        return None
+
+def get_random_verbs(count):
     try:
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
             gen_not_empty_array_query("sentences"),
         ]
-        if not admin:
-            match_and_filters.append(gen_restrict_access_query())
         query = [
             gen_match_and_query(match_and_filters),
             gen_random_docs_query(count),
@@ -169,20 +184,20 @@ class PhrasalVerbs(CustomResource):
         try:
             result = []
             admin = self.is_admin(kwargs["user_info"])
-
             args = parser_search_verb.parse_args()
-            if args['only_verb'] == 1:
+
+            if args['only_verb'] or args['only_particle']:
+                field = 'verb' if args['only_verb'] else  'particle'
                 if admin:
-                    result = get_all_unique_field_values(field='verb')
+                    result = get_all_unique_field_values(field)
                 else:
-                    result = get_all_unique_field_public_values(field='verb')
-            elif args['only_particle'] == 1:
-                if admin:
-                    result = get_all_unique_field_values(field='particle')
-                else:
-                    result = get_all_unique_field_public_values(field='particle')
+                    result = get_all_unique_field_public_values(field)
+
             elif args['random_count'] is not None:
-                result = get_random_verbs(count=args['random_count'], admin=admin)
+                if admin:
+                    result = get_random_verbs(count=args['random_count'])
+                else:              
+                    result = get_random_public_verbs(count=args['random_count'])
             else:
                 result = get_phrasal_verbs(
                     search_key=args["search_key"], full_search=args["full_search"], 
