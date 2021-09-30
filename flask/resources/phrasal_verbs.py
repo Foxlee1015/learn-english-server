@@ -177,7 +177,10 @@ class PhrasalVerbs(CustomResource):
                 else:
                     result = get_all_unique_field_public_values(field='verb')
             elif args['only_particle'] == 1:
-                result = get_unique_values('particle')
+                if admin:
+                    result = get_all_unique_field_values(field='particle')
+                else:
+                    result = get_all_unique_field_public_values(field='particle')
             elif args['random_count'] is not None:
                 result = get_random_verbs(count=args['random_count'], admin=admin)
             else:
