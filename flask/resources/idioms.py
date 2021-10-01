@@ -30,28 +30,40 @@ def get_only_public_idioms():
     return mongo.db.idioms.distinct("expression", gen_restrict_access_query())
 
 
-def get_random_idioms(count, admin=False):
-    random_idioms = []
+def get_random_idioms(count):
     try:
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
             gen_not_empty_array_query("sentences"),
         ]
-        if not admin:
-            match_and_filters.append(gen_restrict_access_query())
         query = [
             gen_match_and_query(match_and_filters),
             gen_random_docs_query(count),
         ]
-        random_idioms = stringify_docs(mongo.db.idioms.aggregate(query))
-        return random_idioms
+        return stringify_docs(mongo.db.idioms.aggregate(query))
     except:
         traceback.print_exc()
-        return random_idioms
+        return None
+
+
+def get_random_public_idioms(count):
+    try:
+        match_and_filters = [
+            gen_not_empty_array_query("definitions"),
+            gen_not_empty_array_query("sentences"),
+            gen_restrict_access_query(),
+        ]
+        query = [
+            gen_match_and_query(match_and_filters),
+            gen_random_docs_query(count),
+        ]
+        return stringify_docs(mongo.db.idioms.aggregate(query))
+    except:
+        traceback.print_exc()
+        return None
 
 
 def get_idioms(search_key=None, full_search=0, exact=0, admin=False):
-    idioms = []
     try:
         query = {}
         if not admin:
@@ -65,11 +77,10 @@ def get_idioms(search_key=None, full_search=0, exact=0, admin=False):
                 ]
             else:
                 query.update(gen_query("expression", search_key, exact))
-        idioms = stringify_docs(mongo.db.idioms.find(query))
-        return idioms
+        return stringify_docs(mongo.db.idioms.find(query))
     except:
         traceback.print_exc()
-        return idioms
+        return None
 
 
 def add_idiom(args):
@@ -109,17 +120,22 @@ def get_idioms_like_count(idiom_id):
     return mongo.db.user_like_idiom.find(query).count()
 
 
-def check_user_like(idiom_id, user_id):
-    query = gen_user_active_like_query(
-        user_id, field_key="idiomId", field_value=idiom_id
-    )
-    return mongo.db.user_like_idiom.find_one(query)
+def get_user_like_active_status(user_info, target):
+    if user_info:
+        query = gen_user_active_like_query(
+            user_info["id"],
+            field_key="idiomId",
+            field_value=target,
+        )
+        if mongo.db.user_like_phrasal_verb.find_one(query):
+            return 1
+    return 0
 
 
-def update_user_like_idiom(args):
+def update_user_like_idiom(user_id, args):
     try:
         search_query = {
-            "userId": args.user_id,
+            "userId": user_id,
             "idiomId": args.idiom_id,
         }
         user_like = search_query.copy()
@@ -140,7 +156,7 @@ parser_create.add_argument("is_public", type=int, help="Public")
 
 parser_search_idiom = reqparse.RequestParser()
 parser_search_idiom.add_argument(
-    "only_idiom", type=int, location="args", help="Return only idioms when 1"
+    "only_idiom", type=int, location="args", help="Return only idioms when true value"
 )
 parser_search_idiom.add_argument(
     "search_key", type=str, help="To search in idiom field", location="args"
@@ -186,17 +202,19 @@ class Idioms(CustomResource):
     def get(self, **kwargs):
         """List all idioms"""
         try:
-            result = []
             admin = self.is_admin(kwargs["user_info"])
 
             args = parser_search_idiom.parse_args()
-            if args["only_idiom"] == 1:
+            if args["only_idiom"]:
                 if admin:
                     result = get_only_idioms()
                 else:
                     result = get_only_public_idioms()
             elif args["random_count"] is not None:
-                result = get_random_idioms(count=args["random_count"], admin=admin)
+                if admin:
+                    result = get_random_idioms(count=args["random_count"])
+                else:
+                    result = get_random_public_idioms(count=args["random_count"])
             else:
                 result = get_idioms(
                     search_key=args["search_key"],
@@ -204,6 +222,8 @@ class Idioms(CustomResource):
                     exact=args["exact"],
                     admin=admin,
                 )
+            if result is None:
+                self.send(status=500)
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
@@ -250,13 +270,13 @@ class IdiomLikes(CustomResource):
     @token_required
     def get(self, **kwargs):
         try:
-            result = {"count": 0, "active": 0}
             args = parser_get_idiom_like.parse_args()
-            result["count"] = get_idioms_like_count(args["idiom_id"])
-            if kwargs["user_info"] is not None:
-                if check_user_like(args["idiom_id"], kwargs["user_info"]["id"]):
-                    result["active"] = 1
-
+            result = {
+                "count": get_idioms_like_count(args["idiom_id"]),
+                "active": get_user_like_active_status(
+                    kwargs["user_info"], args["idiom_id"]
+                ),
+            }
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
@@ -269,8 +289,7 @@ class IdiomLikes(CustomResource):
             if kwargs["user_info"] is None:
                 return self.send(status=401)
             args = parser_like_create.parse_args()
-            args["user_id"] = kwargs["user_info"]["id"]
-            result = update_user_like_idiom(args)
+            result = update_user_like_idiom(kwargs["user_info"]["id"], args)
             if result:
                 return self.send(status=200)
             else:

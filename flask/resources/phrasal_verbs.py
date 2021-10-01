@@ -41,8 +41,7 @@ def get_random_public_verbs(count):
             gen_match_and_query(match_and_filters),
             gen_random_docs_query(count),
         ]
-        random_verbs = stringify_docs(mongo.db.phrasal_verbs.aggregate(query))
-        return random_verbs
+        return stringify_docs(mongo.db.phrasal_verbs.aggregate(query))
     except:
         traceback.print_exc()
         return None
@@ -58,15 +57,13 @@ def get_random_verbs(count):
             gen_match_and_query(match_and_filters),
             gen_random_docs_query(count),
         ]
-        random_verbs = stringify_docs(mongo.db.phrasal_verbs.aggregate(query))
-        return random_verbs
+        return stringify_docs(mongo.db.phrasal_verbs.aggregate(query))
     except:
         traceback.print_exc()
         return None
 
 
 def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
-    phrasal_verbs = []
     try:
         query = {}
         if not admin:
@@ -81,11 +78,10 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
                 ]
             else:
                 query.update(gen_query("verb", search_key, exact))
-        phrasal_verbs = stringify_docs(mongo.db.phrasal_verbs.find(query))
-        return phrasal_verbs
+        return stringify_docs(mongo.db.phrasal_verbs.find(query))
     except:
         traceback.print_exc()
-        return phrasal_verbs
+        return None
 
 
 def upsert_phrasal_verbs(args):
@@ -138,19 +134,22 @@ def get_phrasal_verbs_like(phrasal_verb_id):
     return mongo.db.user_like_phrasal_verb.find(query).count()
 
 
-def check_user_like(phrasal_verb_id, user_id):
-    query = gen_user_active_like_query(
-        user_id,
-        field_key="phrasalVerbId",
-        field_value=phrasal_verb_id,
-    )
-    return mongo.db.user_like_phrasal_verb.find_one(query)
+def get_user_like_active_status(user_info, target):
+    if user_info:
+        query = gen_user_active_like_query(
+            user_info["id"],
+            field_key="phrasalVerbId",
+            field_value=target,
+        )
+        if mongo.db.user_like_phrasal_verb.find_one(query):
+            return 1
+    return 0
 
 
-def update_user_like_phrasal_verb(args):
+def update_user_like_phrasal_verb(user_id, args):
     try:
         search_query = {
-            "userId": args.user_id,
+            "userId": user_id,
             "phrasalVerbId": args.phrasal_verb_id,
         }
         user_like = search_query.copy()
@@ -177,10 +176,13 @@ parser_create.add_argument("is_public", type=int, help="Public")
 
 parser_search_verb = reqparse.RequestParser()
 parser_search_verb.add_argument(
-    "only_verb", type=int, location="args", help="Return only verbs when 1"
+    "only_verb", type=int, location="args", help="Return only verbs when true value"
 )
 parser_search_verb.add_argument(
-    "only_particle", type=int, location="args", help="Return only particles when 1"
+    "only_particle",
+    type=int,
+    location="args",
+    help="Return only particles when true value",
 )
 parser_search_verb.add_argument(
     "random_count", type=int, location="args", help="Get random verbs"
@@ -227,7 +229,6 @@ class PhrasalVerbs(CustomResource):
     def get(self, **kwargs):
         """List all phrasal verbs"""
         try:
-            result = []
             admin = self.is_admin(kwargs["user_info"])
             args = parser_search_verb.parse_args()
 
@@ -250,6 +251,9 @@ class PhrasalVerbs(CustomResource):
                     exact=args["exact"],
                     admin=admin,
                 )
+
+            if result is None:
+                self.send(status=500)
 
             return self.send(status=200, result=result)
         except:
@@ -316,13 +320,13 @@ class PhrasalVerbLikes(CustomResource):
     @token_required
     def get(self, **kwargs):
         try:
-            result = {"count": 0, "active": 0}
             args = parser_get_phrasal_verb_like.parse_args()
-            result["count"] = get_phrasal_verbs_like(args["phrasal_verb_id"])
-            if kwargs["user_info"] is not None:
-                if check_user_like(args["phrasal_verb_id"], kwargs["user_info"]["id"]):
-                    result["active"] = 1
-
+            result = {
+                "count": get_phrasal_verbs_like(args["phrasal_verb_id"]),
+                "active": get_user_like_active_status(
+                    kwargs["user_info"], args["phrasal_verb_id"]
+                ),
+            }
             return self.send(status=200, result=result)
         except:
             traceback.print_exc()
@@ -335,8 +339,7 @@ class PhrasalVerbLikes(CustomResource):
             if kwargs["user_info"] is None:
                 return self.send(status=401)
             args = parser_like_create.parse_args()
-            args["user_id"] = kwargs["user_info"]["id"]
-            result = update_user_like_phrasal_verb(args)
+            result = update_user_like_phrasal_verb(kwargs["user_info"]["id"], args)
             if result:
                 return self.send(status=200)
             else:
