@@ -46,7 +46,7 @@ class Session(CustomResource):
                 save_session(session_id, user["id"])
                 user_data = get_user(id_=user["id"])
                 user = set_user_info(user_data)
-                user["session_id"] = session_id
+                user["session"] = session_id
 
                 return self.send(status=201, result=user)
             else:
