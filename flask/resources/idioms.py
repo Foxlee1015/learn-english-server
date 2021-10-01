@@ -127,7 +127,7 @@ def get_user_like_active_status(user_info, target):
             field_key="idiomId",
             field_value=target,
         )
-        if mongo.db.user_like_phrasal_verb.find_one(query):
+        if mongo.db.user_like_idiom.find_one(query):
             return 1
     return 0
 
