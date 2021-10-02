@@ -14,14 +14,11 @@ mongo_uri = os.getenv("MONGO_DB_URI")
 
 def gen_query(field, search_key, exact=0, insensitive_case=True):
     # {"$text": {"$search": search_key}}
-    query = {}
-    keyword = search_key  # contain keyword
-    if exact:
-        keyword = f"^{search_key}$"  # exact keyword
 
-    query[field] = {"$regex": keyword}
-    if insensitive_case:
-        query[field]["$options"] = "i"  # to match upper and lower cases
+    keyword = f"^{search_key}$" if exact else search_key
+    query = {field: {"$regex": keyword}}
+    if insensitive_case:  # to match upper and lower cases
+        query[field]["$options"] = "i"
 
     return query
 
