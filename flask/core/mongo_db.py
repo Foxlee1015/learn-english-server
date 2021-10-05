@@ -39,6 +39,22 @@ def gen_not_empty_array_query(field):
     return {f"{field}.0": {"$exists": "true"}}
 
 
+def gen_not_include_query(field=None):
+    return {field: {"$exists": False}}
+
+
+def gen_return_fields_query(includes=None, excludes=None):
+    query = {}
+    if isinstance(includes, list):
+        for field in includes:
+            query[field] = 1
+    if isinstance(excludes, list):
+        for field in excludes:
+            query[field] = 0
+
+    return query
+
+
 def gen_match_and_query(filters):
     return {"$match": {"$and": filters}}
 
