@@ -108,6 +108,22 @@ def upsert_phrasal_verbs(args):
         return False
 
 
+def upsert_phrasal_verbs_dictionary(verb, particle, dictionary):
+    try:
+        search_query = {
+            "verb": verb,
+            "particle": particle,
+        }
+
+        upsert_dictionary = {"$set": dictionary}
+        mongo.db.phrasal_verbs.update(search_query, upsert_dictionary, upsert=True)
+        return True
+
+    except:
+        traceback.print_exc()
+        return False
+
+
 def delete_phrasal_verbs(args):
     try:
         query = {}
@@ -341,6 +357,59 @@ class PhrasalVerbLikes(CustomResource):
             args = parser_like_create.parse_args()
             result = update_user_like_phrasal_verb(kwargs["user_info"]["id"], args)
             if result:
+                return self.send(status=200)
+            else:
+                return self.send(status=400)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+
+
+parser_dictionary = reqparse.RequestParser()
+parser_dictionary.add_argument("verb", type=str, required=True)
+parser_dictionary.add_argument("particle", type=str, required=True)
+parser_dictionary.add_argument("src", type=str, required=True, help="Source dictionary")
+parser_dictionary.add_argument(
+    "definitions", type=str, help="Definitions", action="append"
+)
+parser_dictionary.add_argument("examples", type=str, help="Examples", action="append")
+
+
+@api.route("/dictionary")
+class PhrasalVerbDictionary(CustomResource):
+    # @api.doc("phrasal_verb_dictionary")
+    # @api.expect()
+    # # @token_required
+    # def get(self, **kwargs):
+    #     try:
+    #         args = parser_get_phrasal_verb_like.parse_args()
+    #         result = {
+    #             "count": get_phrasal_verbs_like(args["phrasal_verb_id"]),
+    #             "active": get_user_like_active_status(
+    #                 kwargs["user_info"], args["phrasal_verb_id"]
+    #             ),
+    #         }
+    #         return self.send(status=200, result=result)
+    #     except:
+    #         traceback.print_exc()
+    #         return self.send(status=500)
+
+    @api.expect(parser_dictionary, parser_header)
+    # @token_required
+    def post(self, **kwargs):
+        try:
+            # if kwargs["user_info"] is None:
+            #     return self.send(status=401)
+            args = parser_dictionary.parse_args()
+            dictionary = {
+                f"dict_{args.src.lower()}": {
+                    "definitions": args.definitions,
+                    "examples": args.examples,
+                }
+            }
+            upsert_phrasal_verbs_dictionary(args.verb, args.particle, dictionary)
+
+            if True:
                 return self.send(status=200)
             else:
                 return self.send(status=400)
