@@ -86,23 +86,16 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
         return None
 
 
-def upsert_phrasal_verbs(args):
+def upsert_phrasal_verbs(phrasal_verb):
     try:
         search_query = {
-            "verb": args.verb,
-            "particle": args.particle,
+            "verb": phrasal_verb.verb,
+            "particle": phrasal_verb.particle,
         }
 
-        phrasal_verb_data = {
-            "verb": args.verb,
-            "particle": args.particle,
-            "definitions": args.get("definitions") or [],
-            "sentences": args.get("sentences") or [],
-            "difficulty": args.get("difficulty") or 0,
-            "is_public": args.get("is_public") or 0,
-        }
+        upsert_phrasal_verb = {"$set": phrasal_verb}
 
-        mongo.db.phrasal_verbs.replace_one(search_query, phrasal_verb_data, upsert=True)
+        mongo.db.phrasal_verbs.update(search_query, upsert_phrasal_verb, upsert=True)
         return True
 
     except:
