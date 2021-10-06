@@ -70,6 +70,8 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
         query = {}
         if not admin:
             query = gen_restrict_access_query()
+            excludes = ["dict_cambridge", "dict_merriam", "dict_oxford", "is_public"]
+            return_fields = gen_return_fields_query(excludes=excludes)
         if search_key is not None:
             if full_search:
                 query["$or"] = [
@@ -80,8 +82,6 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
                 ]
             else:
                 query.update(gen_query("verb", search_key, exact))
-        excludes = ["dict_cambridge", "dict_merriam", "dict_oxford", "is_public"]
-        return_fields = gen_return_fields_query(excludes=excludes)
         return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
     except:
         traceback.print_exc()
