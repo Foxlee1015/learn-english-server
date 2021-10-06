@@ -80,7 +80,9 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
                 ]
             else:
                 query.update(gen_query("verb", search_key, exact))
-        return stringify_docs(mongo.db.phrasal_verbs.find(query))
+        excludes = ["dict_cambridge", "dict_merriam", "dict_oxford", "is_public"]
+        return_fields = gen_return_fields_query(excludes=excludes)
+        return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
     except:
         traceback.print_exc()
         return None
@@ -94,7 +96,6 @@ def upsert_phrasal_verbs(phrasal_verb):
         }
 
         upsert_phrasal_verb = {"$set": phrasal_verb}
-
         mongo.db.phrasal_verbs.update(search_query, upsert_phrasal_verb, upsert=True)
         return True
 
@@ -271,7 +272,6 @@ class PhrasalVerbs(CustomResource):
                     exact=args["exact"],
                     admin=admin,
                 )
-
             if result is None:
                 self.send(status=500)
 
@@ -391,23 +391,26 @@ class PhrasalVerbLikes(CustomResource):
             return self.send(status=500)
 
 
+def get_phrasal_verbs_to_search():
+    query = {
+        "$or": [
+            gen_not_include_query(field="dict_merriam"),
+            gen_not_include_query(field="dict_cambridge"),
+            gen_not_include_query(field="dict_oxford"),
+        ]
+    }
+    return_fields = gen_return_fields_query(
+        includes=["verb", "particle"], excludes=["_id"]
+    )
+    return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
+
+
 @api.route("/dictionary-empty")
 class PhrasalVerbEmptyDictionary(CustomResource):
     @api.doc("add definitions and examples from dictionaries")
     def get(self, **kwargs):
         try:
-            query = {
-                "$or": [
-                    gen_not_include_query(field="dict_merriam"),
-                    gen_not_include_query(field="dict_cambridge"),
-                    gen_not_include_query(field="dict_oxford"),
-                ]
-            }
-            return_fields = gen_return_fields_query(
-                includes=["verb", "particle"], excludes=["_id"]
-            )
-            result = stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
-            return self.send(status=200, result=result)
+            return self.send(status=200, result=get_phrasal_verbs_to_search())
         except:
             traceback.print_exc()
             return self.send(status=500)
