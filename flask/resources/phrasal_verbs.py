@@ -327,7 +327,7 @@ class PhrasalVerb(CustomResource):
         """Get a phrasal verb"""
         try:
             admin = self.is_admin(kwargs["user_info"])
-            result = get_phrasal_verbs(search_key=verb, admin=admin)
+            result = get_phrasal_verbs(search_key=verb, exact=1, admin=admin)
 
             return self.send(status=200, result=result)
         except:
