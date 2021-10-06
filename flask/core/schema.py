@@ -1,4 +1,4 @@
-schema="""
+schema = """
 CREATE TABLE IF NOT EXISTS `user` (
     `id`                    INT(11) NOT NULL AUTO_INCREMENT,
     `name`                  VARCHAR(12) UNIQUE,
@@ -9,6 +9,11 @@ CREATE TABLE IF NOT EXISTS `user` (
     `login_counting`        INT(5) DEFAULT 0,
     `create_datetime`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `update_datetime`       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(`id`)
+);
+CREATE TABLE IF NOT EXISTS `particle` (
+    `id`                    INT(11) NOT NULL AUTO_INCREMENT,
+    `name`                  VARCHAR(12) UNIQUE,
     PRIMARY KEY(`id`)
 );
 """
