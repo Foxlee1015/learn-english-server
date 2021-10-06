@@ -68,11 +68,6 @@ def get_random_verbs(count):
 def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
     try:
         query = {}
-        return_fields = {}
-        if not admin:
-            query = gen_restrict_access_query()
-            excludes = ["dict_cambridge", "dict_merriam", "dict_oxford", "is_public"]
-            return_fields = gen_return_fields_query(excludes=excludes)
         if search_key is not None:
             if full_search:
                 query["$or"] = [
@@ -83,7 +78,13 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
                 ]
             else:
                 query.update(gen_query("verb", search_key, exact))
-        return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
+        if not admin:
+            query.update(gen_restrict_access_query())
+            excludes = ["dict_cambridge", "dict_merriam", "dict_oxford", "is_public"]
+            return_fields = gen_return_fields_query(excludes=excludes)
+            return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
+        else:
+            return stringify_docs(mongo.db.phrasal_verbs.find(query))
     except:
         traceback.print_exc()
         return None
