@@ -7,6 +7,7 @@ from core.db import redis_store, get_user
 from .users import get_user_if_verified
 from core.utils import token_required, random_string_digits
 from core.resource import CustomResource
+from core.variables import TOKEN_VALID_TIME
 
 api = Namespace("sessions", description="Sessions related operations")
 
@@ -24,7 +25,7 @@ def create_session_id():
 
 
 def save_session(session_id, user_id):
-    redis_store.set(name=session_id, value=user_id, ex=60 * 60 * 24)
+    redis_store.set(name=session_id, value=user_id, ex=TOKEN_VALID_TIME)
 
 
 def set_user_info(user):
