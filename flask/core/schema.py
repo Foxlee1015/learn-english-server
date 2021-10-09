@@ -16,4 +16,9 @@ CREATE TABLE IF NOT EXISTS `particle` (
     `name`                  VARCHAR(12) UNIQUE,
     PRIMARY KEY(`id`)
 );
+CREATE TABLE IF NOT EXISTS `verb` (
+    `id`                    INT(11) NOT NULL AUTO_INCREMENT,
+    `name`                  VARCHAR(12) UNIQUE,
+    PRIMARY KEY(`id`)
+);
 """

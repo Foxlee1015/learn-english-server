@@ -90,7 +90,6 @@ def init_db():
 
 
 def _create_default_users():
-
     if not get_user(name="admin"):
         ADMIN_NAME = os.getenv("ADMIN_NAME")
         ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
@@ -222,6 +221,65 @@ def insert_particles(names=None):
 
             cur = conn.cursor()
             sql = "INSERT IGNORE into particle(name) values (%s)"
+            cur.executemany(sql, (names))
+            conn.commit()
+
+        return True
+    except:
+        traceback.print_exc()
+        return False
+
+
+def get_verbs(id_=None, name=None):
+    try:
+        with get_db() as conn:
+
+            cur = conn.cursor()
+            sql = """
+                SELECT *
+                FROM verb
+            """
+
+            if id_ is not None:
+                sql = add_condition_to_query(sql, "id", id_)
+
+            elif name is not None:
+                sql = add_condition_to_query(sql, "name", name)
+
+            cur.execute(sql)
+            conn.commit()
+            res = cur.fetchall()
+            return res
+    except:
+        traceback.print_exc()
+        return False
+
+
+def delete_verbs(ids):
+    try:
+        with get_db() as conn:
+
+            cur = conn.cursor()
+
+            sql = f"""
+                DELETE FROM verb
+                WHERE id in ({','.join(str(id) for id in ids)})
+            """
+            cur.execute(sql)
+            conn.commit()
+
+        return True
+    except:
+        traceback.print_exc()
+        return False
+
+
+def insert_verbs(names=None):
+    try:
+        with get_db() as conn:
+
+            cur = conn.cursor()
+            sql = "INSERT IGNORE into verb(name) values (%s)"
             cur.executemany(sql, (names))
             conn.commit()
 

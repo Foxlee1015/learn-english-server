@@ -2,7 +2,7 @@ import traceback
 from flask_restplus import Namespace, reqparse
 
 
-from core.db import get_particles, insert_particles, delete_particles
+from core.db import get_verbs, insert_verbs, delete_verbs
 
 from core.resource import (
     CustomResource,
@@ -10,21 +10,21 @@ from core.resource import (
 from core.utils import token_required
 from resources.phrasal_verbs import get_all_unique_field_values, sync_phrasal_verbs
 
-api = Namespace("particles", description="Particles related operations")
+api = Namespace("verbs", description="Verbs related operations")
 
 parser_create = reqparse.RequestParser()
-parser_create.add_argument("name", type=str, required=True, help="Unique particle")
+parser_create.add_argument("name", type=str, required=True, help="Unique verb")
 
 parser_header = reqparse.RequestParser()
 parser_header.add_argument("Authorization", type=str, required=True, location="headers")
 
 
 @api.route("/")
-class Particles(CustomResource):
-    @api.doc("list_particles")
+class Verbs(CustomResource):
+    @api.doc("list_verbs")
     def get(self):
         try:
-            return self.send(status=200, result=get_particles())
+            return self.send(status=200, result=get_verbs())
         except:
             traceback.print_exc()
             return self.send(status=500)
@@ -38,9 +38,9 @@ class Particles(CustomResource):
 
             args = parser_create.parse_args()
             name = args["name"]
-            if get_particles(name=name):
+            if get_verbs(name=name):
                 return self.send(status=200)
-            result = insert_particles(names=[name])
+            result = insert_verbs(names=[name])
             if result:
                 # sync_phrasal_verbs()
                 return self.send(status=201)
@@ -52,52 +52,43 @@ class Particles(CustomResource):
 
 
 @api.route("/<int:id_>")
-@api.param("id", "The particle identifier")
-class Particle(CustomResource):
-    @api.doc("get_particle")
+@api.param("id", "The verb identifier")
+class verb(CustomResource):
+    @api.doc("get_verb")
     def get(self, id_):
-        particle = get_particles(id_=id_)
-        if particle is None:
+        verb = get_verbs(id_=id_)
+        if verb is None:
             return self.send(status=200, result=None)
-        return self.send(status=200, result=particle)
+        return self.send(status=200, result=verb)
 
-    @api.doc("delete_particle")
+    @api.doc("delete_verb")
     @api.expect(parser_header)
     @token_required
     def delete(self, id_, **kwargs):
         try:
             if not self.is_admin(kwargs["user_info"]):
                 return self.send(status=403)
-            result = delete_particles(ids=[id_])
+            result = delete_verbs(ids=[id_])
             if result:
                 return self.send(status=200)
-            return self.send(status=400, message="Check particle id")
+            return self.send(status=400, message="Check verb id")
 
         except:
             traceback.print_exc()
             return self.send(status=500)
 
-    @api.doc("update_particle")
-    @api.expect(parser_create)
-    def put(self, id_):
-        # TODO
-        # args = parser_create.parse_args()
-        # name = args["name"]
-        # user = update_particle(id_, name)
-        return self.send(status=200)
-
 
 @api.route("/async")
-class AsyncParticles(CustomResource):
-    @api.doc("async_particle")
+class AsyncVerbs(CustomResource):
+    @api.doc("async_verb")
     @api.expect(parser_header)
     @token_required
     def put(self, **kwargs):
         try:
             if not self.is_admin(kwargs["user_info"]):
                 return self.send(status=403)
-            particles = get_all_unique_field_values("particle")
-            insert_particles(names=particles)
+            verbs = get_all_unique_field_values("verb")
+            insert_verbs(names=verbs)
             return self.send(status=200)
 
         except:

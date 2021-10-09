@@ -6,7 +6,6 @@ from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
 from core.resource import CustomResource
-from core.db import get_particles, get_verbs
 from core.utils import token_required
 from core.mongo_db import (
     mongo,
@@ -18,9 +17,6 @@ from core.mongo_db import (
     stringify_docs,
     gen_collection_active_like_query,
     gen_user_active_like_query,
-    gen_not_include_query,
-    gen_return_fields_query,
-    gen_include_query,
 )
 
 api = Namespace("phrasal-verbs", description="Phrasal_verbs related operations")
@@ -67,56 +63,19 @@ def get_random_verbs(count):
         return None
 
 
-def get_phrasal_verbs(search_key=None, full_search=0, exact=0):
-    try:
-        query = gen_restrict_access_query()
-        if search_key is not None:
-            if full_search:
-                query.update(gen_full_search_query(search_key, exact))
-            else:
-                query.update(gen_query("verb", search_key, exact))
-
-            excludes = ["dictionaires", "is_public"]
-            return_fields = gen_return_fields_query(excludes=excludes)
-            return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
-        else:
-            return stringify_docs(mongo.db.phrasal_verbs.find(query))
-    except:
-        traceback.print_exc()
-        return None
-
-
-def gen_full_search_query(search_key, exact):
-    return {
-        "$or": [
-            gen_query("verb", search_key, exact),
-            gen_query("particle", search_key, exact),
-            gen_query("definitions", search_key, exact),
-            gen_query("sentences", search_key, exact),
-        ]
-    }
-
-
-def gen_has_dictionary_query():
-    return {
-        "$or": [
-            gen_include_query(field="merriam"),
-            gen_include_query(field="cambridge"),
-            gen_include_query(field="oxford"),
-        ]
-    }
-
-
-def gen_phrasal_verb_search_query(verb, particle):
-    return {"verb": verb, "particle": particle}
-
-
-def get_phrasal_verbs_with_dictionary(search_key=None, full_search=0, exact=0):
+def get_phrasal_verbs(search_key=None, full_search=0, exact=0, admin=False):
     try:
         query = {}
+        if not admin:
+            query = gen_restrict_access_query()
         if search_key is not None:
             if full_search:
-                query.update(gen_full_search_query(search_key, exact))
+                query["$or"] = [
+                    gen_query("verb", search_key, exact),
+                    gen_query("particle", search_key, exact),
+                    gen_query("definitions", search_key, exact),
+                    gen_query("sentences", search_key, exact),
+                ]
             else:
                 query.update(gen_query("verb", search_key, exact))
         return stringify_docs(mongo.db.phrasal_verbs.find(query))
@@ -125,28 +84,23 @@ def get_phrasal_verbs_with_dictionary(search_key=None, full_search=0, exact=0):
         return None
 
 
-def upsert_phrasal_verbs(phrasal_verb):
+def upsert_phrasal_verbs(args):
     try:
-        search_query = gen_phrasal_verb_search_query(
-            phrasal_verb["verb"], phrasal_verb["particle"]
-        )
-        upsert_phrasal_verb = {"$set": phrasal_verb}
-        rs = mongo.db.phrasal_verbs.update(
-            search_query, upsert_phrasal_verb, upsert=True
-        )
-        print(stringify_docs(mongo.db.phrasal_verbs.find({})))
-        return True
+        search_query = {
+            "verb": args.verb,
+            "particle": args.particle,
+        }
 
-    except:
-        traceback.print_exc()
-        return False
+        phrasal_verb_data = {
+            "verb": args.verb,
+            "particle": args.particle,
+            "definitions": args.get("definitions") or [],
+            "sentences": args.get("sentences") or [],
+            "difficulty": args.get("difficulty") or 0,
+            "is_public": args.get("is_public") or 0,
+        }
 
-
-def upsert_phrasal_verbs_dictionary(verb, particle, data):
-    try:
-        search_query = gen_phrasal_verb_search_query(verb, particle)
-        upsert_dictionary = {"$set": {"dictionaires": data}}
-        mongo.db.phrasal_verbs.update(search_query, upsert_dictionary, upsert=True)
+        mongo.db.phrasal_verbs.replace_one(search_query, phrasal_verb_data, upsert=True)
         return True
 
     except:
@@ -267,18 +221,6 @@ parser_like_create.add_argument(
 parser_like_create.add_argument("like", type=int, required=True, help="like when 1")
 
 
-parser_dictionary = reqparse.RequestParser()
-parser_dictionary.add_argument("particle", type=str, required=True)
-parser_dictionary.add_argument("datetime", type=str, required=True)
-parser_dictionary.add_argument(
-    "dictionaries", type=str, required=True, help="Source dictionaries", action="append"
-)
-parser_dictionary.add_argument(
-    "definitions", type=str, help="Definitions", action="append"
-)
-parser_dictionary.add_argument("examples", type=str, help="Examples", action="append")
-
-
 @api.route("/")
 class PhrasalVerbs(CustomResource):
     @api.doc("list of phrasal_verbs")
@@ -303,18 +245,13 @@ class PhrasalVerbs(CustomResource):
                 else:
                     result = get_random_public_verbs(count=args["random_count"])
             else:
-                if admin:
-                    result = get_phrasal_verbs_with_dictionary(
-                        search_key=args["search_key"],
-                        full_search=args["full_search"],
-                        exact=args["exact"],
-                    )
-                else:
-                    result = get_phrasal_verbs(
-                        search_key=args["search_key"],
-                        full_search=args["full_search"],
-                        exact=args["exact"],
-                    )
+                result = get_phrasal_verbs(
+                    search_key=args["search_key"],
+                    full_search=args["full_search"],
+                    exact=args["exact"],
+                    admin=admin,
+                )
+
             if result is None:
                 self.send(status=500)
 
@@ -348,9 +285,9 @@ class PhrasalVerbs(CustomResource):
         try:
             if not self.is_admin(kwargs["user_info"]):
                 return self.send(status=403)
-            args = parser_delete.parse_args()
 
-            result = None  # delete_phrasal_verbs(args)
+            args = parser_delete.parse_args()
+            result = delete_phrasal_verbs(args)
             status = 200 if result else 400
 
             return self.send(status=status)
@@ -359,54 +296,18 @@ class PhrasalVerbs(CustomResource):
             return self.send(status=500)
 
 
-def get_phrasal_verb_with_dictionary(verb, particle):
-    search_query = gen_phrasal_verb_search_query(verb, particle)
-    return stringify_docs(mongo.db.phrasal_verbs.find(search_query))
-
-
-parser_particle = reqparse.RequestParser()
-parser_particle.add_argument("particle", type=str, required=True)
-
-
 @api.route("/<string:verb>")
 class PhrasalVerb(CustomResource):
     @api.doc("phrasal_verb")
-    @api.expect(parser_header, parser_particle)
+    @api.expect(parser_header)
     @token_required
     def get(self, verb, **kwargs):
         """Get a phrasal verb"""
         try:
-            args = parser_particle.parse_args()
             admin = self.is_admin(kwargs["user_info"])
-            if admin:
-                result = get_phrasal_verbs_with_dictionary(search_key=verb, exact=1)
-            else:
-                result = get_phrasal_verbs(search_key=verb, exact=1)
+            result = get_phrasal_verbs(search_key=verb, admin=admin)
 
             return self.send(status=200, result=result)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
-
-    @api.expect(parser_dictionary, parser_header)
-    @token_required
-    def put(self, verb, **kwargs):
-        try:
-            if kwargs["user_info"] is None:
-                return self.send(status=401)
-            args = parser_dictionary.parse_args()
-            dictionary = {
-                "definitions": args.definitions,
-                "examples": args.examples,
-                "dictionaries": args.dictionaries,
-                "uploaded_datetime": args.datetime,
-            }
-            print(args)
-            result = upsert_phrasal_verbs_dictionary(verb, args.particle, dictionary)
-            if result:
-                return self.send(status=200)
-            else:
-                return self.send(status=400)
         except:
             traceback.print_exc()
             return self.send(status=500)
@@ -443,52 +344,6 @@ class PhrasalVerbLikes(CustomResource):
                 return self.send(status=200)
             else:
                 return self.send(status=400)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
-
-
-def get_phrasal_verbs_to_search():
-    query = gen_not_include_query(field="dictionaires")
-    return_fields = gen_return_fields_query(
-        includes=["verb", "particle"], excludes=["_id"]
-    )
-    return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
-
-
-@api.route("/dictionary-empty")
-class PhrasalVerbEmptyDictionary(CustomResource):
-    @api.doc("add definitions and examples from dictionaries")
-    def get(self, **kwargs):
-        try:
-            return self.send(status=200, result=get_phrasal_verbs_to_search())
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
-
-
-def sync_phrasal_verbs():
-    verbs = get_verbs()
-    particles = get_particles()
-    for verb in verbs:
-        for particle in particles:
-            upsert_phrasal_verbs({"verb": verb["name"], "particle": particle["name"]})
-
-
-@api.route("/sync")
-class AsyncPhrasalVerbs(CustomResource):
-    @api.doc("sync_phrasal_verbs_from_verbs_and_paritlces")
-    @api.expect(parser_header)
-    @token_required
-    def put(self, **kwargs):
-        try:
-            if not self.is_admin(kwargs["user_info"]):
-                return self.send(status=403)
-            # TODO  async job
-            sync_phrasal_verbs()
-
-            return self.send(status=200)
-
         except:
             traceback.print_exc()
             return self.send(status=500)

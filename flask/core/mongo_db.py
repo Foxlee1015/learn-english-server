@@ -43,6 +43,10 @@ def gen_not_include_query(field=None):
     return {field: {"$exists": False}}
 
 
+def gen_include_query(field=None):
+    return {field: {"$exists": True}}
+
+
 def gen_return_fields_query(includes=None, excludes=None):
     query = {}
     if isinstance(includes, list):
