@@ -7,7 +7,6 @@ from .sessions import api as sessions
 from .idioms import api as idioms
 from .phrasal_verbs import api as phrasal_verbs
 from .users import api as users
-from .particles import api as particles
 from .verbs import api as verbs
 
 blueprint = Blueprint("api", __name__)
@@ -18,5 +17,4 @@ api.add_namespace(idioms)
 api.add_namespace(logs)
 api.add_namespace(sessions)
 api.add_namespace(users)
-api.add_namespace(particles)
 api.add_namespace(verbs)
