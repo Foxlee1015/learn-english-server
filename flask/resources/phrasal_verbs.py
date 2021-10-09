@@ -134,7 +134,6 @@ def upsert_phrasal_verbs(phrasal_verb):
         rs = mongo.db.phrasal_verbs.update(
             search_query, upsert_phrasal_verb, upsert=True
         )
-        print(stringify_docs(mongo.db.phrasal_verbs.find({})))
         return True
 
     except:
@@ -401,7 +400,6 @@ class PhrasalVerb(CustomResource):
                 "dictionaries": args.dictionaries,
                 "uploaded_datetime": args.datetime,
             }
-            print(args)
             result = upsert_phrasal_verbs_dictionary(verb, args.particle, dictionary)
             if result:
                 return self.send(status=200)
@@ -443,52 +441,6 @@ class PhrasalVerbLikes(CustomResource):
                 return self.send(status=200)
             else:
                 return self.send(status=400)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
-
-
-def get_phrasal_verbs_to_search():
-    query = gen_not_include_query(field="dictionaires")
-    return_fields = gen_return_fields_query(
-        includes=["verb", "particle"], excludes=["_id"]
-    )
-    return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
-
-
-@api.route("/dictionary-empty")
-class PhrasalVerbEmptyDictionary(CustomResource):
-    @api.doc("add definitions and examples from dictionaries")
-    def get(self, **kwargs):
-        try:
-            return self.send(status=200, result=get_phrasal_verbs_to_search())
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
-
-
-def sync_phrasal_verbs():
-    verbs = get_verbs()
-    particles = get_particles()
-    for verb in verbs:
-        for particle in particles:
-            upsert_phrasal_verbs({"verb": verb["name"], "particle": particle["name"]})
-
-
-@api.route("/sync")
-class AsyncPhrasalVerbs(CustomResource):
-    @api.doc("sync_phrasal_verbs_from_verbs_and_paritlces")
-    @api.expect(parser_header)
-    @token_required
-    def put(self, **kwargs):
-        try:
-            if not self.is_admin(kwargs["user_info"]):
-                return self.send(status=403)
-            # TODO  async job
-            sync_phrasal_verbs()
-
-            return self.send(status=200)
-
         except:
             traceback.print_exc()
             return self.send(status=500)
