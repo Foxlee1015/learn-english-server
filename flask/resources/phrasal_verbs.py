@@ -146,7 +146,7 @@ def upsert_phrasal_verbs(phrasal_verb):
 def upsert_phrasal_verbs_dictionary(verb, particle, data):
     try:
         search_query = gen_phrasal_verb_search_query(verb, particle)
-        upsert_dictionary = {"$set": {"dictionaires": data}}
+        upsert_dictionary = {"$set": {"dictionaries": data}}
         mongo.db.phrasal_verbs.update(search_query, upsert_dictionary, upsert=True)
         return True
 
@@ -399,7 +399,7 @@ class PhrasalVerb(CustomResource):
             dictionary = {
                 "definitions": args.definitions,
                 "examples": args.examples,
-                "dictionaries": args.dictionaries,
+                "sources": args.dictionaries,
                 "uploaded_datetime": args.datetime,
             }
             result = upsert_phrasal_verbs_dictionary(verb, args.particle, dictionary)

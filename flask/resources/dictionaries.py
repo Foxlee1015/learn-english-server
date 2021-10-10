@@ -16,7 +16,7 @@ api = Namespace("dictionaries", description="Dictionaries related operations")
 
 
 def get_phrasal_verbs_to_search():
-    query = gen_not_include_query(field="dictionaires")
+    query = gen_not_include_query(field="dictionaries")
     return_fields = gen_return_fields_query(
         includes=["verb", "particle"], excludes=["_id"]
     )
