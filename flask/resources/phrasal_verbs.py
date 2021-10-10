@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
+from dotenv import load_dotenv
+import os
 import traceback
 from bson import ObjectId
+from threading import Thread
 from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
 from core.resource import CustomResource
-from core.db import get_particles, get_verbs
 from core.utils import token_required
 from core.mongo_db import (
     mongo,
@@ -76,7 +78,7 @@ def get_phrasal_verbs(search_key=None, full_search=0, exact=0):
             else:
                 query.update(gen_query("verb", search_key, exact))
 
-            excludes = ["dictionaires", "is_public"]
+            excludes = ["dictionaries", "is_public"]
             return_fields = gen_return_fields_query(excludes=excludes)
             return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
         else:
@@ -211,6 +213,24 @@ def update_user_like_phrasal_verb(user_id, args):
         return None
 
 
+def start_crawler():
+    try:
+        APP_ROOT = os.path.join(os.path.dirname(__file__), "..")
+        dotenv_path = os.path.join(APP_ROOT, ".env")
+        load_dotenv(dotenv_path)
+        os.system(f'sh {os.getenv("CRAWLER")}')
+
+    except:
+        traceback.print_exc()
+        return None
+
+
+def start_crawler_job():
+    thread = Thread(target=start_crawler)
+    thread.daemon = True
+    thread.start()
+
+
 parser_create = reqparse.RequestParser()
 parser_create.add_argument("verb", type=str, required=True, help="Verb")
 parser_create.add_argument(
@@ -334,7 +354,12 @@ class PhrasalVerbs(CustomResource):
                 return self.send(status=403)
             args = parser_create.parse_args()
             result = upsert_phrasal_verbs(args)
-            status = 201 if result else 400
+
+            if result:
+                status = 201
+                start_crawler_job()
+            else:
+                status = 400
 
             return self.send(status=status)
         except:
