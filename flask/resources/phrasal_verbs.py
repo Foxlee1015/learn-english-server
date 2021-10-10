@@ -10,7 +10,7 @@ from flask import request
 from flask_restplus import Namespace, Resource, fields, reqparse
 
 from core.resource import CustomResource
-from core.utils import token_required
+from core.utils import token_required, execute_command_ssh
 from core.mongo_db import (
     mongo,
     gen_restrict_access_query,
@@ -219,7 +219,7 @@ def start_crawler():
         APP_ROOT = os.path.join(os.path.dirname(__file__), "..")
         dotenv_path = os.path.join(APP_ROOT, ".env")
         load_dotenv(dotenv_path)
-        subprocess.call(["sh", os.getenv("CRAWLER")])
+        execute_command_ssh(os.getenv("CRAWLER"))
 
     except:
         traceback.print_exc()

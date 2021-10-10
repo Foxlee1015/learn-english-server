@@ -7,12 +7,14 @@ from resources import blueprint as api
 from core.db import init_db
 from core.mongo_db import mongo_uri, mongo
 from core.errors import DbConnectError
+from core.utils import execute_command_ssh
 from resources.verbs import update_unique_verbs_job
 
 
 def init_settings():
     try:
         init_db()
+        execute_command_ssh("ls")
         set_mongodb_indexes()
     except DbConnectError as e:
         print(e)
