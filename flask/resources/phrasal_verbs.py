@@ -108,7 +108,9 @@ def gen_has_dictionary_query():
 
 
 def gen_phrasal_verb_search_query(verb, particle):
-    return {"verb": verb, "particle": particle}
+    if particle:
+        return {"verb": verb, "particle": particle}
+    return {"verb": verb}
 
 
 def get_phrasal_verbs_with_dictionary(search_key=None, full_search=0, exact=0):
@@ -364,7 +366,7 @@ def get_phrasal_verb_with_dictionary(verb, particle):
 
 
 parser_particle = reqparse.RequestParser()
-parser_particle.add_argument("particle", type=str, required=True)
+parser_particle.add_argument("particle", type=str)
 
 
 @api.route("/<string:verb>")
@@ -378,7 +380,7 @@ class PhrasalVerb(CustomResource):
             args = parser_particle.parse_args()
             admin = self.is_admin(kwargs["user_info"])
             if admin:
-                result = get_phrasal_verbs_with_dictionary(search_key=verb, exact=1)
+                result = get_phrasal_verb_with_dictionary(verb, args["particle"])
             else:
                 result = get_phrasal_verbs(search_key=verb, exact=1)
 
