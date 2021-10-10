@@ -2,6 +2,7 @@
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+import subprocess
 import traceback
 from bson import ObjectId
 from threading import Thread
@@ -218,7 +219,7 @@ def start_crawler():
         APP_ROOT = os.path.join(os.path.dirname(__file__), "..")
         dotenv_path = os.path.join(APP_ROOT, ".env")
         load_dotenv(dotenv_path)
-        os.system(f'sh {os.getenv("CRAWLER")}')
+        subprocess.call(["sh", os.getenv("CRAWLER")])
 
     except:
         traceback.print_exc()
