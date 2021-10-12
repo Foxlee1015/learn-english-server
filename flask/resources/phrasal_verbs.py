@@ -377,7 +377,7 @@ class PhrasalVerbs(CustomResource):
                 return self.send(status=403)
             args = parser_delete.parse_args()
 
-            result = None  # delete_phrasal_verbs(args)
+            result = delete_phrasal_verbs(args)
             status = 200 if result else 400
 
             return self.send(status=status)
