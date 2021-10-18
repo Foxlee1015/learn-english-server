@@ -29,27 +29,12 @@ api = Namespace("phrasal-verbs", description="Phrasal_verbs related operations")
 
 
 def get_random_public_verbs(count):
+    count = 1 if not count else count
     try:
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
             gen_not_empty_array_query("sentences"),
             gen_restrict_access_query(),
-        ]
-        query = [
-            gen_match_and_query(match_and_filters),
-            gen_random_docs_query(count),
-        ]
-        return stringify_docs(mongo.db.phrasal_verbs.aggregate(query))
-    except:
-        traceback.print_exc()
-        return None
-
-
-def get_random_verbs(count):
-    try:
-        match_and_filters = [
-            gen_not_empty_array_query("definitions"),
-            gen_not_empty_array_query("sentences"),
         ]
         query = [
             gen_match_and_query(match_and_filters),
@@ -235,18 +220,6 @@ parser_create.add_argument("is_public", type=int, help="Public")
 
 parser_search_verb = reqparse.RequestParser()
 parser_search_verb.add_argument(
-    "only_verb", type=int, location="args", help="Return only verbs when true value"
-)
-parser_search_verb.add_argument(
-    "only_particle",
-    type=int,
-    location="args",
-    help="Return only particles when true value",
-)
-parser_search_verb.add_argument(
-    "random_count", type=int, location="args", help="Get random verbs"
-)
-parser_search_verb.add_argument(
     "search_key", type=str, help="To search in verb field", location="args"
 )
 parser_search_verb.add_argument(
@@ -291,6 +264,9 @@ parser_dictionary.add_argument(
 )
 parser_dictionary.add_argument("examples", type=str, help="Examples", action="append")
 
+parser_random = reqparse.RequestParser()
+parser_random.add_argument("count", type=int, location="args")
+
 
 @api.route("/")
 class PhrasalVerbs(CustomResource):
@@ -302,32 +278,18 @@ class PhrasalVerbs(CustomResource):
         try:
             admin = self.is_admin(kwargs["user_info"])
             args = parser_search_verb.parse_args()
-
-            if args["only_verb"] or args["only_particle"]:
-                field = "verb" if args["only_verb"] else "particle"
-                if admin:
-                    result = get_all_unique_field_values(field)
-                else:
-                    result = get_all_unique_field_public_values(field)
-
-            elif args["random_count"] is not None:
-                if admin:
-                    result = get_random_verbs(count=args["random_count"])
-                else:
-                    result = get_random_public_verbs(count=args["random_count"])
+            if admin:
+                result = get_phrasal_verbs_with_dictionary(
+                    search_key=args["search_key"],
+                    full_search=args["full_search"],
+                    exact=args["exact"],
+                )
             else:
-                if admin:
-                    result = get_phrasal_verbs_with_dictionary(
-                        search_key=args["search_key"],
-                        full_search=args["full_search"],
-                        exact=args["exact"],
-                    )
-                else:
-                    result = get_phrasal_verbs(
-                        search_key=args["search_key"],
-                        full_search=args["full_search"],
-                        exact=args["exact"],
-                    )
+                result = get_phrasal_verbs(
+                    search_key=args["search_key"],
+                    full_search=args["full_search"],
+                    exact=args["exact"],
+                )
             if result is None:
                 self.send(status=500)
 
@@ -372,6 +334,24 @@ class PhrasalVerbs(CustomResource):
             status = 200 if result else 400
 
             return self.send(status=status)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+
+
+@api.route("/random")
+class PhrasalVerbs(CustomResource):
+    @api.expect(parser_random)
+    def get(self):
+        """List random phrasal verbs"""
+        try:
+            args = parser_random.parse_args()
+            result = get_random_public_verbs(args["count"])
+
+            if result is None:
+                self.send(status=500)
+
+            return self.send(status=200, result=result)
         except:
             traceback.print_exc()
             return self.send(status=500)
