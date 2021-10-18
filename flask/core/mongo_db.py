@@ -89,3 +89,7 @@ def gen_user_active_like_query(user_id, field_key=None, field_value=None):
 
 def gen_restrict_access_query():
     return {"is_public": 1}
+
+
+def get_all_unique_field_values(field):
+    return mongo.db.phrasal_verbs.distinct(field)

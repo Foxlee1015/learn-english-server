@@ -9,6 +9,7 @@ from core.mongo_db import mongo_uri, mongo
 from core.errors import DbConnectError
 from core.utils import execute_command_ssh
 from resources.verbs import update_unique_verbs_job
+from resources.particles import update_unique_particles_job
 
 
 def init_settings():
@@ -25,6 +26,7 @@ def init_settings():
 # thread
 def background_task():
     update_unique_verbs_job()
+    update_unique_particles_job()
 
 
 def set_mongodb_indexes():

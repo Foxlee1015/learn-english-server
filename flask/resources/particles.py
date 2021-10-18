@@ -10,31 +10,31 @@ from core.resource import (
     CustomResource,
 )
 
-api = Namespace("verbs", description="Verbs related operations")
+api = Namespace("particles", description="particles related operations")
 
 
-unique_verbs = []
+unique_particles = []
 
 
-def update_unique_verbs():
+def update_unique_particles():
     while True:
-        global unique_verbs
-        unique_verbs = get_all_unique_field_values("verb")
+        global unique_particles
+        unique_particles = get_all_unique_field_values("particle")
         time.sleep(UPDATE_VERB_LIST_TIME)
 
 
-def update_unique_verbs_job():
-    thread = Thread(target=update_unique_verbs)
+def update_unique_particles_job():
+    thread = Thread(target=update_unique_particles)
     thread.daemon = True
     thread.start()
 
 
 @api.route("/")
-class Verbs(CustomResource):
-    @api.doc("list_verbs")
+class particles(CustomResource):
+    @api.doc("list_particles")
     def get(self):
         try:
-            return self.send(status=200, result=unique_verbs)
+            return self.send(status=200, result=unique_particles)
         except:
             traceback.print_exc()
             return self.send(status=500)

@@ -21,20 +21,11 @@ from core.mongo_db import (
     stringify_docs,
     gen_collection_active_like_query,
     gen_user_active_like_query,
-    gen_not_include_query,
     gen_return_fields_query,
     gen_include_query,
 )
 
 api = Namespace("phrasal-verbs", description="Phrasal_verbs related operations")
-
-
-def get_all_unique_field_values(field):
-    return mongo.db.phrasal_verbs.distinct(field)
-
-
-def get_all_unique_field_public_values(field):
-    return mongo.db.phrasal_verbs.distinct(field, gen_restrict_access_query())
 
 
 def get_random_public_verbs(count):
