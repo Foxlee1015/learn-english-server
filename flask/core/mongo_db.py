@@ -91,5 +91,6 @@ def gen_restrict_access_query():
     return {"is_public": 1}
 
 
-def get_all_unique_field_values(field):
-    return mongo.db.phrasal_verbs.distinct(field)
+def get_all_unique_field_values(field, query=None):
+    query = {} if query is None else query
+    return mongo.db.phrasal_verbs.distinct(field, query)

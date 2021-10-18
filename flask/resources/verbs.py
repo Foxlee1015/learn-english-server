@@ -1,10 +1,11 @@
 import traceback
-import time
+import _testimportmultiple
 from flask_restplus import Namespace, reqparse
 from threading import Thread
 
-from core.variables import UPDATE_VERB_LIST_TIME
 from core.mongo_db import get_all_unique_field_values
+from core.mongo_db import gen_restrict_access_query
+from core.utils import token_required
 
 from core.resource import (
     CustomResource,
@@ -16,25 +17,31 @@ api = Namespace("verbs", description="Verbs related operations")
 unique_verbs = []
 
 
-def update_unique_verbs():
-    while True:
-        global unique_verbs
-        unique_verbs = get_all_unique_field_values("verb")
-        time.sleep(UPDATE_VERB_LIST_TIME)
+parser = reqparse.RequestParser()
+parser.add_argument(
+    "public",
+    type=int,
+    location="args",
+)
 
-
-def update_unique_verbs_job():
-    thread = Thread(target=update_unique_verbs)
-    thread.daemon = True
-    thread.start()
+parser_header = reqparse.RequestParser()
+parser_header.add_argument("Authorization", type=str, location="headers")
 
 
 @api.route("/")
 class Verbs(CustomResource):
     @api.doc("list_verbs")
-    def get(self):
+    @api.expect(parser, parser_header)
+    @token_required
+    def get(self, **kwargs):
         try:
-            return self.send(status=200, result=unique_verbs)
+            query = (
+                {}
+                if self.is_admin(kwargs["user_info"])
+                else gen_restrict_access_query()
+            )
+            verbs = get_all_unique_field_values("verb", query=query)
+            return self.send(status=200, result=verbs)
         except:
             traceback.print_exc()
             return self.send(status=500)
