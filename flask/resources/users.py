@@ -205,14 +205,21 @@ class Users(CustomResource):
 @api.param("id_", "The user identifier")
 class User(CustomResource):
     @api.doc("get_user")
-    def get(self, id_):
+    @api.expect(parser_header)
+    @token_required
+    def get(self, id_, **kwargs):
         """Fetch a user given its identifier"""
-
-        user = get_user(id_=id_)
-        if user is None:
-            return self.send(status=200, result=None)
-        user = json_serializer_all_datetime_keys(user)
-        return self.send(status=200, result=user)
+        if kwargs["user_info"] is None:
+            return self.send(status=401)
+        if self.is_admin(kwargs["user_info"]) or id_ == kwargs["user_info"]["id"]:
+            user = get_user(id_=id_)
+            if user:
+                user = json_serializer_all_datetime_keys(user)
+                return self.send(status=200, result=user)
+            else:
+                return self.send(status=404)
+        else:
+            return self.send(status=401)
 
 
 @api.route("/idioms")
