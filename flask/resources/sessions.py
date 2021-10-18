@@ -20,12 +20,10 @@ parser_header = reqparse.RequestParser()
 parser_header.add_argument("Authorization", type=str, required=True, location="headers")
 
 
-def create_session_id():
-    return random_string_digits(30)
-
-
-def save_session(session_id, user_id):
+def create_session(user_id):
+    session_id = random_string_digits(30)
     redis_store.set(name=session_id, value=user_id, ex=TOKEN_VALID_TIME)
+    return session_id
 
 
 def set_user_info(user):
@@ -43,13 +41,9 @@ class Session(CustomResource):
             args = parser_create.parse_args()
             user = get_user_if_verified(args["username"], args["password"])
             if user:
-                session_id = create_session_id()
-                save_session(session_id, user["id"])
-                user_data = get_user(id_=user["id"])
-                user = set_user_info(user_data)
-                user["session"] = session_id
-
-                return self.send(status=201, result=user)
+                user_info = set_user_info(user)
+                user_info["session"] = create_session(user["id"])
+                return self.send(status=201, result=user_info)
             else:
                 return self.send(status=400, message="Check your id and password.")
         except:

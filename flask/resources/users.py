@@ -48,7 +48,7 @@ def get_user_if_verified(name, password):
         user_info = get_user_hashed_password_with_user_id(name)
         if user_info:
             if verify_password(password, user_info["salt"], user_info["password"]):
-                return user_info
+                return get_user(id_=user_info["id"])
         return None
     except:
         traceback.print_exc()
