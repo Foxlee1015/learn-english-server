@@ -58,10 +58,13 @@ def get_verbs_from_phrasal_verbs(
     search_key=None, full_search=0, exact=0, only_public=True
 ):
     try:
-        query = gen_restrict_access_query() if only_public else {}
-        return_fields = gen_return_fields_query(
-            includes=["verb", "particle", "phrasal_verb"]
-        )
+        query = {}
+        return_fields = None
+        if only_public:
+            query = gen_restrict_access_query()
+            return_fields = gen_return_fields_query(
+                includes=["verb", "particle", "phrasal_verb"]
+            )
         if search_key is not None:
             if full_search:
                 query.update(gen_full_search_query(search_key, exact))
@@ -104,27 +107,13 @@ def gen_phrasal_verb_search_query(phrasal_verb):
     return result
 
 
-def get_phrasal_verbs_with_dictionary(search_key=None, full_search=0, exact=0):
+def upsert_phrasal_verb(phrasal_verb_info):
     try:
-        query = {}
-        if search_key is not None:
-            if full_search:
-                query.update(gen_full_search_query(search_key, exact))
-            else:
-                query.update(gen_query("verb", search_key, exact))
-        return stringify_docs(mongo.db.phrasal_verbs.find(query))
-    except:
-        traceback.print_exc()
-        return None
-
-
-def upsert_phrasal_verb(phrasal_verb):
-    try:
-        verb = phrasal_verb["verb"]
-        particle = phrasal_verb["particle"]
+        verb = phrasal_verb_info["verb"]
+        particle = phrasal_verb_info["particle"]
         search_query = {"verb": verb, "particle": particle}
-        phrasal_verb.update({"phrasal_verb": f"{verb} {particle}"})
-        upsert_phrasal_verb = {"$set": phrasal_verb}
+        phrasal_verb_info.update({"phrasal_verb": f"{verb} {particle}"})
+        upsert_phrasal_verb = {"$set": phrasal_verb_info}
         rs = mongo.db.phrasal_verbs.update(
             search_query, upsert_phrasal_verb, upsert=True
         )
