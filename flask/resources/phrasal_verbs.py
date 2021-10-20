@@ -43,10 +43,10 @@ def get_random_public_verbs(count):
         return None
 
 
-def get_phrasal_verb(phrasal_verb_id):
+def get_phrasal_verb(phrasal_verb):
     try:
         query = gen_restrict_access_query()
-        query.update({"_id": ObjectId(phrasal_verb_id)})
+        query.update(gen_phrasal_verb_search_query(phrasal_verb))
         return_fields = gen_return_fields_query(excludes=["dictionaries", "is_public"])
         return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
     except:
@@ -94,6 +94,16 @@ def gen_has_dictionary_query():
     }
 
 
+def gen_phrasal_verb_search_query(phrasal_verb):
+    result = None
+    verb, particle = get_verb_particle_from_phrasal_verb(phrasal_verb)
+    if verb:
+        result = {"verb": verb}
+    if particle:
+        result["particle"] = particle
+    return result
+
+
 def get_phrasal_verbs_with_dictionary(search_key=None, full_search=0, exact=0):
     try:
         query = {}
@@ -110,10 +120,7 @@ def get_phrasal_verbs_with_dictionary(search_key=None, full_search=0, exact=0):
 
 def upsert_phrasal_verb(phrasal_verb):
     try:
-        search_query = {
-            "verb": phrasal_verb["verb"],
-            "particle": phrasal_verb["particle"],
-        }
+        search_query = gen_phrasal_verb_search_query(phrasal_verb)
         upsert_phrasal_verb = {"$set": phrasal_verb}
         rs = mongo.db.phrasal_verbs.update(
             search_query, upsert_phrasal_verb, upsert=True
@@ -125,9 +132,9 @@ def upsert_phrasal_verb(phrasal_verb):
         return False
 
 
-def upsert_phrasal_verb_dictionary(phrasal_verb_id, data):
+def upsert_phrasal_verb_dictionary(phrasal_verb, data):
     try:
-        search_query = {"_id": ObjectId(phrasal_verb_id)}
+        search_query = gen_phrasal_verb_search_query(phrasal_verb)
         upsert_dictionary = {"$set": {"dictionaries": data}}
         mongo.db.phrasal_verbs.update(search_query, upsert_dictionary, upsert=True)
         return True
@@ -359,10 +366,10 @@ class PhrasalVerbs(CustomResource):
             return self.send(status=500)
 
 
-def get_phrasal_verb_with_dictionary(phrasal_verb_id):
+def get_phrasal_verb_with_dictionary(phrasal_verb):
     try:
-        query = {"_id": ObjectId(phrasal_verb_id)}
-        return stringify_docs(mongo.db.phrasal_verbs.find(query))
+        search_query = gen_phrasal_verb_search_query(phrasal_verb)
+        return stringify_docs(mongo.db.phrasal_verbs.find(search_query))
     except:
         traceback.print_exc()
         return None
@@ -377,18 +384,18 @@ def get_verb_particle_from_phrasal_verb(phrasal_verb):
         return result
 
 
-@api.route("/<string:phrasal_verb_id>")
+@api.route("/<string:phrasal_verb>")
 class PhrasalVerb(CustomResource):
     @api.doc("phrasal_verb")
     @api.expect(parser_header)
     @token_required
-    def get(self, phrasal_verb_id, **kwargs):
+    def get(self, phrasal_verb, **kwargs):
         """Get a phrasal verb"""
         try:
             if self.is_admin(kwargs["user_info"]):
-                result = get_phrasal_verb_with_dictionary(phrasal_verb_id)
+                result = get_phrasal_verb_with_dictionary(phrasal_verb)
             else:
-                result = get_phrasal_verb(phrasal_verb_id)
+                result = get_phrasal_verb(phrasal_verb)
             status = 200 if result else 404
             return self.send(status=status, result=result)
 
@@ -398,7 +405,7 @@ class PhrasalVerb(CustomResource):
 
     @api.expect(parser_header, parser_dictionary)
     @token_required
-    def put(self, phrasal_verb_id, **kwargs):
+    def put(self, phrasal_verb, **kwargs):
         try:
             if kwargs["user_info"] is None:
                 return self.send(status=401)
@@ -409,7 +416,7 @@ class PhrasalVerb(CustomResource):
                 "sources": args.dictionaries,
                 "uploaded_datetime": args.datetime,
             }
-            result = upsert_phrasal_verb_dictionary(phrasal_verb_id, dictionary)
+            result = upsert_phrasal_verb_dictionary(phrasal_verb, dictionary)
             status = 200 if result else 404
             return self.send(status=status)
         except:
