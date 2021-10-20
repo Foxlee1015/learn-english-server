@@ -59,15 +59,15 @@ def get_verbs_from_phrasal_verbs(
 ):
     try:
         query = gen_restrict_access_query() if only_public else {}
-        return_fields = gen_return_fields_query(includes=["verb"], excludes=["_id"])
+        return_fields = gen_return_fields_query(
+            includes=["verb", "particle", "phrasal_verb"]
+        )
         if search_key is not None:
             if full_search:
                 query.update(gen_full_search_query(search_key, exact))
             else:
                 query.update(gen_query("verb", search_key, exact))
-
-        verbs = stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
-        return [v["verb"] for v in verbs]
+        return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
     except:
         traceback.print_exc()
         return None
