@@ -54,20 +54,20 @@ def get_phrasal_verb(phrasal_verb):
         return None
 
 
-def get_phrasal_verbs(search_key=None, full_search=0, exact=0):
+def get_verbs_from_phrasal_verbs(
+    search_key=None, full_search=0, exact=0, only_public=True
+):
     try:
-        query = gen_restrict_access_query()
+        query = gen_restrict_access_query() if only_public else {}
+        return_fields = gen_return_fields_query(includes=["verb"], excludes=["_id"])
         if search_key is not None:
             if full_search:
                 query.update(gen_full_search_query(search_key, exact))
             else:
                 query.update(gen_query("verb", search_key, exact))
-            return_fields = gen_return_fields_query(
-                excludes=["dictionaries", "is_public"]
-            )
-            return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
-        else:
-            return stringify_docs(mongo.db.phrasal_verbs.find(query))
+
+        verbs = stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
+        return [v["verb"] for v in verbs]
     except:
         traceback.print_exc()
         return None
@@ -288,20 +288,14 @@ class PhrasalVerbs(CustomResource):
     def get(self, **kwargs):
         """List all phrasal verbs"""
         try:
-            admin = self.is_admin(kwargs["user_info"])
+            only_public = not self.is_admin(kwargs["user_info"])
             args = parser_search_verb.parse_args()
-            if admin:
-                result = get_phrasal_verbs_with_dictionary(
-                    search_key=args["search_key"],
-                    full_search=args["full_search"],
-                    exact=args["exact"],
-                )
-            else:
-                result = get_phrasal_verbs(
-                    search_key=args["search_key"],
-                    full_search=args["full_search"],
-                    exact=args["exact"],
-                )
+            result = get_verbs_from_phrasal_verbs(
+                search_key=args["search_key"],
+                full_search=args["full_search"],
+                exact=args["exact"],
+                only_public=only_public,
+            )
             if result is None:
                 self.send(status=500)
 
