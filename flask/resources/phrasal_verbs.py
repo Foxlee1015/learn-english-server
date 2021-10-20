@@ -48,7 +48,6 @@ def get_phrasal_verb(phrasal_verb_id):
         query = gen_restrict_access_query()
         query.update({"_id": ObjectId(phrasal_verb_id)})
         return_fields = gen_return_fields_query(excludes=["dictionaries", "is_public"])
-        print(query, return_fields)
         return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
     except:
         traceback.print_exc()
@@ -128,7 +127,7 @@ def upsert_phrasal_verb(phrasal_verb):
 
 def upsert_phrasal_verb_dictionary(phrasal_verb_id, data):
     try:
-        search_query = {"_id", ObjectId(phrasal_verb_id)}
+        search_query = {"_id": ObjectId(phrasal_verb_id)}
         upsert_dictionary = {"$set": {"dictionaries": data}}
         mongo.db.phrasal_verbs.update(search_query, upsert_dictionary, upsert=True)
         return True
