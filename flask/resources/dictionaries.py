@@ -18,7 +18,7 @@ api = Namespace("dictionaries", description="Dictionaries related operations")
 def get_phrasal_verbs_to_search():
     query = gen_not_include_query(field="dictionaries")
     return_fields = gen_return_fields_query(
-        includes=["verb", "particle"], excludes=["_id"]
+        includes=["verb", "particle", "_id"],
     )
     return stringify_docs(mongo.db.phrasal_verbs.find(query, return_fields))
 

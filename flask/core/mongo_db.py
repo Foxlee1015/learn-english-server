@@ -94,3 +94,7 @@ def gen_restrict_access_query():
 def get_all_unique_field_values(field, query=None):
     query = {} if query is None else query
     return mongo.db.phrasal_verbs.distinct(field, query)
+
+
+def remove_fiedl(field, query):
+    mongo.db.phrasal_verbs.update_many(query, {"$unset": {field: ""}})
