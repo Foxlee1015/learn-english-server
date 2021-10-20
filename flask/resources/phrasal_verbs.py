@@ -120,7 +120,10 @@ def get_phrasal_verbs_with_dictionary(search_key=None, full_search=0, exact=0):
 
 def upsert_phrasal_verb(phrasal_verb):
     try:
-        search_query = gen_phrasal_verb_search_query(phrasal_verb)
+        verb = phrasal_verb["verb"]
+        particle = phrasal_verb["particle"]
+        search_query = {"verb": verb, "particle": particle}
+        phrasal_verb.update({"phrasal_verb": f"{verb} {particle}"})
         upsert_phrasal_verb = {"$set": phrasal_verb}
         rs = mongo.db.phrasal_verbs.update(
             search_query, upsert_phrasal_verb, upsert=True
