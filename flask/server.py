@@ -1,5 +1,13 @@
-from app import create_app
+import sys
+from app import create_app, set_db
 
 if __name__ == "__main__":
-    app = create_app()
-    app.run(host='0.0.0.0', port=8002, debug=True)
+    config_name = sys.argv[1]
+    if config_name in ["prod", "dev", "test"]:
+        app = create_app(config_name)
+        set_db(app)
+        app.run(
+            host=app.config["HOST"], port=app.config["PORT"], debug=app.config["DEBUG"]
+        )
+    else:
+        print("Provide a config name(one of prod, dev or test)")

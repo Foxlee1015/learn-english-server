@@ -17,6 +17,7 @@ from core.mongo_db import (
     stringify_docs,
     gen_collection_active_like_query,
     gen_user_active_like_query,
+    gen_return_fields_query,
 )
 
 api = Namespace("idioms", description="Idioms related operations")
@@ -193,6 +194,30 @@ parser_like_create = reqparse.RequestParser()
 parser_like_create.add_argument("idiom_id", type=str, required=True, help="Idiom id")
 parser_like_create.add_argument("like", type=int, required=True, help="like when 1")
 
+parser_dictionary = reqparse.RequestParser()
+parser_dictionary.add_argument("datetime", type=str, required=True)
+parser_dictionary.add_argument(
+    "dictionaries", type=str, help="Source dictionaries", action="append"
+)
+parser_dictionary.add_argument(
+    "definitions", type=str, help="Definitions", action="append"
+)
+parser_dictionary.add_argument("examples", type=str, help="Examples", action="append")
+
+
+def upsert_idiom(idiom_info):
+    try:
+        upsert_idiom = {"$set": idiom_info}
+        rs = mongo.db.idioms.update(
+            {"expression": idiom_info["expression"]}, upsert_idiom, upsert=True
+        )
+        print(rs)
+        return True
+
+    except:
+        traceback.print_exc()
+        return False
+
 
 @api.route("/")
 class Idioms(CustomResource):
@@ -239,7 +264,8 @@ class Idioms(CustomResource):
                 return self.send(status=403)
 
             args = parser_create.parse_args()
-            result = add_idiom(args)
+            print(args)
+            result = upsert_idiom(args)
             status = 201 if result else 400
             return self.send(status=status)
         except:
@@ -257,6 +283,76 @@ class Idioms(CustomResource):
             args = parser_delete.parse_args()
             result = delete_idiom(args)
             status = 200 if result else 400
+            return self.send(status=status)
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+
+
+def get_idiom_with_dictionary(idiom):
+    try:
+        return stringify_docs(mongo.db.idioms.find({"expression": idiom}))
+    except:
+        traceback.print_exc()
+        return None
+
+
+def get_idiom(idiom):
+    try:
+        query = gen_restrict_access_query()
+        query.update({"expression": idiom})
+        return_fields = gen_return_fields_query(excludes=["dictionaries", "is_public"])
+        return stringify_docs(mongo.db.idioms.find(query, return_fields))
+    except:
+        traceback.print_exc()
+        return None
+
+
+def upsert_idiom_dictionary(idiom, data):
+    try:
+        upsert_dictionary = {"$set": {"dictionaries": data}}
+        mongo.db.idioms.update({"expression": idiom}, upsert_dictionary, upsert=True)
+        return True
+
+    except:
+        traceback.print_exc()
+        return False
+
+
+@api.route("/<string:idiom>")
+class Idiom(CustomResource):
+    @api.expect(parser_header)
+    @token_required
+    def get(self, idiom, **kwargs):
+        """Get a idiom verb"""
+        try:
+            if self.is_admin(kwargs["user_info"]):
+                result = get_idiom_with_dictionary(idiom)
+            else:
+                result = get_idiom(idiom)
+            status = 200 if result else 404
+            return self.send(status=status, result=result)
+
+        except:
+            traceback.print_exc()
+            return self.send(status=500)
+
+    @api.expect(parser_header, parser_dictionary)
+    @token_required
+    def put(self, idiom, **kwargs):
+        try:
+            print(idiom)
+            if kwargs["user_info"] is None:
+                return self.send(status=401)
+            args = parser_dictionary.parse_args()
+            dictionary = {
+                "definitions": args.definitions,
+                "examples": args.examples,
+                "sources": args.dictionaries,
+                "uploaded_datetime": args.datetime,
+            }
+            result = upsert_idiom_dictionary(idiom, dictionary)
+            status = 200 if result else 404
             return self.send(status=status)
         except:
             traceback.print_exc()
