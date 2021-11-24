@@ -1,8 +1,8 @@
 version: "3"
 
 services:
-  flask_app:
-    container_name: learn_english
+  english_app:
+    container_name: english_server
     # networks:
     #   - nginx_network
     restart: always
@@ -18,9 +18,9 @@ services:
     restart: always
     build: ./nginx
     ports:
-      - "80:80"
+      - "16211:80"
     depends_on:
-      - flask_app
+      - english_app
 # networks:
 #   nginx_network:
 #     external: true
