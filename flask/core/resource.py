@@ -1,8 +1,10 @@
-import json
 from datetime import date, datetime
 
-from flask import Response
 from flask_restplus import Resource
+
+from flask import current_app, request
+from core.response import CustomeResponse
+from core.db import redis_store
 
 
 class CustomResource(Resource):
@@ -10,21 +12,11 @@ class CustomResource(Resource):
         super().__init__(api, args, kwargs)
 
     def send(self, *args, **kwargs):
-        headers = {}
-        headers["Access-Control-Allow-Origin"] = "*"
-        headers["Access-Control-Allow-Headers"] = "*"
-        headers["Access-Control-Allow-Credentials"] = True
-
-        response_body = {}
-        response_body["result"] = kwargs.get("result")
-        response_body["message"] = kwargs.get("message")
-
-        json_encode = json.JSONEncoder().encode
-        return Response(
-            json_encode(response_body),
-            status=kwargs["status"],
-            headers=headers,
-            mimetype="application/json",
+        return CustomeResponse.generate(
+            kwargs.get("status"),
+            result=kwargs.get("result"),
+            message=kwargs.get("message"),
+            response_type=kwargs.get("response_type"),
         )
 
     def is_admin(self, user_info):
@@ -35,13 +27,21 @@ class CustomResource(Resource):
         return False
 
 
-def response(**kwargs):
-    params = ["status", "message", "result"]
-    for param in params:
-        if kwargs.get(param) is None:
-            kwargs[param] = None
+def token_checker(f):
+    def wrapper(*args, **kwargs):
+        user = None
+        from core.models import User as UserModel
 
-    return kwargs
+        if current_app.config["TESTING"]:
+            return f(*args, **kwargs, auth_user=UserModel.query.get(1))
+        if auth_header := request.headers.get("Authorization"):
+            if user_id := redis_store.get(auth_header):
+                user = UserModel.query.get(user_id)
+        return f(*args, **kwargs, auth_user=user)
+
+    wrapper.__doc__ = f.__doc__
+    wrapper.__name__ = f.__name__
+    return wrapper
 
 
 def json_serializer(obj, ignore_type_error=False):

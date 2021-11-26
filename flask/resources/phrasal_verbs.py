@@ -4,9 +4,10 @@ import os
 import traceback
 from bson import ObjectId
 from threading import Thread
-from flask_restplus import Namespace, reqparse
+from flask_restplus import Namespace, reqparse, Resource
 
-from core.resource import CustomResource
+from core.resource import token_checker
+from core.response import CustomeResponse, return_500_for_sever_error
 from core.utils import token_required, execute_command_ssh
 from core.mongo_db import (
     mongo,
@@ -270,28 +271,24 @@ parser_random.add_argument("count", type=int, location="args")
 
 
 @api.route("/")
-class PhrasalVerbs(CustomResource):
+class PhrasalVerbs(Resource, CustomeResponse):
     @api.doc("list of phrasal_verbs")
     @api.expect(parser_search_verb, parser_header)
-    @token_required
+    @token_checker
+    @return_500_for_sever_error
     def get(self, **kwargs):
         """List all phrasal verbs"""
-        try:
-            only_public = not self.is_admin(kwargs["user_info"])
-            args = parser_search_verb.parse_args()
-            result = get_verbs_from_phrasal_verbs(
-                search_key=args["search_key"],
-                full_search=args["full_search"],
-                exact=args["exact"],
-                only_public=only_public,
-            )
-            if result is None:
-                self.send(status=500)
-
-            return self.send(status=200, result=result)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        only_public = True
+        if kwargs["auth_user"]:
+            only_public = not kwargs["auth_user"].is_admin()
+        args = parser_search_verb.parse_args()
+        result = get_verbs_from_phrasal_verbs(
+            search_key=args["search_key"],
+            full_search=args["full_search"],
+            exact=args["exact"],
+            only_public=only_public,
+        )
+        return self.send(response_type="SUCCESS", result=result)
 
     @api.doc("add a phrasal verb")
     @api.expect(parser_create, parser_header)
@@ -335,7 +332,7 @@ class PhrasalVerbs(CustomResource):
 
 
 @api.route("/random")
-class PhrasalVerbs(CustomResource):
+class PhrasalVerbs(Resource, CustomeResponse):
     @api.expect(parser_random)
     def get(self):
         """List random phrasal verbs"""
@@ -371,7 +368,7 @@ def get_verb_particle_from_phrasal_verb(phrasal_verb):
 
 
 @api.route("/<string:phrasal_verb>")
-class PhrasalVerb(CustomResource):
+class PhrasalVerb(Resource, CustomeResponse):
     @api.doc("phrasal_verb")
     @api.expect(parser_header)
     @token_required
@@ -411,7 +408,7 @@ class PhrasalVerb(CustomResource):
 
 
 @api.route("/likes")
-class PhrasalVerbLikes(CustomResource):
+class PhrasalVerbLikes(Resource, CustomeResponse):
     @api.doc("phrasal_verb")
     @api.expect(parser_get_phrasal_verb_like)
     @token_required
