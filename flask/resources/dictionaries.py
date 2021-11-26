@@ -1,6 +1,4 @@
-import traceback
-import time
-from flask_restplus import Namespace, reqparse
+from flask_restplus import Namespace, Resource
 
 from core.mongo_db import (
     mongo,
@@ -8,8 +6,9 @@ from core.mongo_db import (
     gen_return_fields_query,
     stringify_docs,
 )
-from core.resource import (
-    CustomResource,
+from core.response import (
+    return_500_for_sever_error,
+    CustomeResponse,
 )
 
 api = Namespace("dictionaries", description="Dictionaries related operations")
@@ -32,22 +31,16 @@ def get_idioms_to_search():
 
 
 @api.route("/phrasal-verb")
-class EmptyDictionary(CustomResource):
+class EmptyDictionary(Resource, CustomeResponse):
     @api.doc("add definitions and examples from dictionaries")
-    def get(self, **kwargs):
-        try:
-            return self.send(status=200, result=get_phrasal_verbs_to_search())
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+    @return_500_for_sever_error
+    def get(self):
+        return self.send(response_type="SUCCESS", result=get_phrasal_verbs_to_search())
 
 
 @api.route("/idiom")
-class EmptyDictionary(CustomResource):
+class EmptyDictionary(Resource, CustomeResponse):
     @api.doc("add definitions and examples from dictionaries")
-    def get(self, **kwargs):
-        try:
-            return self.send(status=200, result=get_idioms_to_search())
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+    @return_500_for_sever_error
+    def get(self):
+        return self.send(response_type="SUCCESS", result=get_idioms_to_search())

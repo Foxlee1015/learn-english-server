@@ -7,8 +7,12 @@ from threading import Thread
 from flask_restplus import Namespace, reqparse, Resource
 
 from core.resource import token_checker
-from core.response import CustomeResponse, return_500_for_sever_error
-from core.utils import token_required, execute_command_ssh
+from core.response import (
+    CustomeResponse,
+    return_500_for_sever_error,
+    return_401_for_no_auth,
+)
+from core.utils import execute_command_ssh
 from core.mongo_db import (
     mongo,
     gen_restrict_access_query,
@@ -278,9 +282,9 @@ class PhrasalVerbs(Resource, CustomeResponse):
     @return_500_for_sever_error
     def get(self, **kwargs):
         """List all phrasal verbs"""
-        only_public = True
-        if kwargs["auth_user"]:
-            only_public = not kwargs["auth_user"].is_admin()
+        only_public = (
+            False if kwargs["auth_user"] and kwargs["auth_user"].is_admin() else False
+        )
         args = parser_search_verb.parse_args()
         result = get_verbs_from_phrasal_verbs(
             search_key=args["search_key"],
@@ -292,61 +296,44 @@ class PhrasalVerbs(Resource, CustomeResponse):
 
     @api.doc("add a phrasal verb")
     @api.expect(parser_create, parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def post(self, **kwargs):
         """Add an phrasal verb"""
-        try:
-            if not self.is_admin(kwargs["user_info"]):
-                return self.send(status=403)
-            args = parser_create.parse_args()
-            result = upsert_phrasal_verb(args)
-
-            if result:
-                status = 201
-                start_crawler_job()
-            else:
-                status = 400
-
-            return self.send(status=status)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        if not kwargs["auth_user"].is_admin():
+            return self.send(response_type="FORBIDDEN")
+        args = parser_create.parse_args()
+        result = upsert_phrasal_verb(args)
+        if result:
+            start_crawler_job()
+            return self.send(response_type="CREATED")
+        else:
+            return self.send(response_type="FAIL")
 
     @api.doc("delete a phrasal verb")
     @api.expect(parser_delete, parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def delete(self, **kwargs):
         """Delete an phrasal verb"""
-        try:
-            if not self.is_admin(kwargs["user_info"]):
-                return self.send(status=403)
-            args = parser_delete.parse_args()
-
-            result = delete_phrasal_verbs(args)
-            status = 200 if result else 400
-
-            return self.send(status=status)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        if not kwargs["auth_user"].is_admin():
+            return self.send(response_type="FORBIDDEN")
+        args = parser_delete.parse_args()
+        result = delete_phrasal_verbs(args)
+        status = "NO_CONTENT" if result else "FAIL"
+        return self.send(status=status)
 
 
 @api.route("/random")
 class PhrasalVerbs(Resource, CustomeResponse):
     @api.expect(parser_random)
+    @return_500_for_sever_error
     def get(self):
         """List random phrasal verbs"""
-        try:
-            args = parser_random.parse_args()
-            result = get_random_public_verbs(args["count"])
-
-            if result is None:
-                self.send(status=500)
-
-            return self.send(status=200, result=result)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        args = parser_random.parse_args()
+        return self.send(
+            response_type="SUCCESS", result=get_random_public_verbs(args["count"])
+        )
 
 
 def get_phrasal_verb_with_dictionary(phrasal_verb):
@@ -371,73 +358,62 @@ def get_verb_particle_from_phrasal_verb(phrasal_verb):
 class PhrasalVerb(Resource, CustomeResponse):
     @api.doc("phrasal_verb")
     @api.expect(parser_header)
-    @token_required
+    @token_checker
+    @return_500_for_sever_error
     def get(self, phrasal_verb, **kwargs):
         """Get a phrasal verb"""
-        try:
-            if self.is_admin(kwargs["user_info"]):
-                result = get_phrasal_verb_with_dictionary(phrasal_verb)
-            else:
-                result = get_phrasal_verb(phrasal_verb)
-            status = 200 if result else 404
-            return self.send(status=status, result=result)
+        if kwargs["auth_user"] and kwargs["auth_user"].is_admin():
+            result = get_phrasal_verb_with_dictionary(phrasal_verb)
+        else:
+            result = get_phrasal_verb(phrasal_verb)
 
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        if result:
+            return self.send(response_type="SUCCESS", result=result)
+        else:
+            return self.send(response_type="NOT_FOUND")
 
     @api.expect(parser_header, parser_dictionary)
-    @token_required
+    @token_checker
+    @return_500_for_sever_error
     def put(self, phrasal_verb, **kwargs):
-        try:
-            if kwargs["user_info"] is None:
-                return self.send(status=401)
-            args = parser_dictionary.parse_args()
-            dictionary = {
-                "definitions": args.definitions,
-                "examples": args.examples,
-                "sources": args.dictionaries,
-                "uploaded_datetime": args.datetime,
-            }
-            result = upsert_phrasal_verb_dictionary(phrasal_verb, dictionary)
-            status = 200 if result else 404
-            return self.send(status=status)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        if not kwargs["auth_user"].is_admin():
+            return self.send(response_type="FORBIDDEN")
+        args = parser_dictionary.parse_args()
+        dictionary = {
+            "definitions": args.definitions,
+            "examples": args.examples,
+            "sources": args.dictionaries,
+            "uploaded_datetime": args.datetime,
+        }
+        if upsert_phrasal_verb_dictionary(phrasal_verb, dictionary):
+            return self.send(response_type="SUCCESS")
+        else:
+            return self.send(response_type="FAIL")
 
 
 @api.route("/likes")
 class PhrasalVerbLikes(Resource, CustomeResponse):
     @api.doc("phrasal_verb")
     @api.expect(parser_get_phrasal_verb_like)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def get(self, **kwargs):
-        try:
-            args = parser_get_phrasal_verb_like.parse_args()
-            result = {
-                "count": get_phrasal_verbs_like(args["phrasal_verb_id"]),
-                "active": get_user_like_active_status(
-                    kwargs["user_info"], args["phrasal_verb_id"]
-                ),
-            }
-            return self.send(status=200, result=result)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        args = parser_get_phrasal_verb_like.parse_args()
+        result = {
+            "count": get_phrasal_verbs_like(args["phrasal_verb_id"]),
+            "active": get_user_like_active_status(
+                kwargs["auth_user"], args["phrasal_verb_id"]
+            ),
+        }
+        return self.send(response_type="SUCCESS", result=result)
 
     @api.expect(parser_like_create, parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def post(self, **kwargs):
-        try:
-            if kwargs["user_info"] is None:
-                return self.send(status=401)
-            args = parser_like_create.parse_args()
-            result = update_user_like_phrasal_verb(kwargs["user_info"]["id"], args)
-            if result:
-                return self.send(status=200)
-            else:
-                return self.send(status=400)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        args = parser_like_create.parse_args()
+        result = update_user_like_phrasal_verb(kwargs["user_info"]["id"], args)
+        if result:
+            return self.send(response_type="SUCCESS")
+        else:
+            return self.send(response_type="FAIL")

@@ -1,14 +1,15 @@
-import traceback
 import time
-from flask_restplus import Namespace, reqparse
+from flask_restplus import Namespace, Resource
 from threading import Thread
 
 from core.variables import UPDATE_VERB_LIST_TIME
 from core.mongo_db import get_all_unique_field_values
 
-from core.resource import (
-    CustomResource,
+from core.response import (
+    return_500_for_sever_error,
+    CustomeResponse,
 )
+
 
 api = Namespace("particles", description="particles related operations")
 
@@ -30,11 +31,8 @@ def update_unique_particles_job():
 
 
 @api.route("/")
-class particles(CustomResource):
+class particles(Resource, CustomeResponse):
     @api.doc("list_particles")
+    @return_500_for_sever_error
     def get(self):
-        try:
-            return self.send(status=200, result=unique_particles)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        return self.send(response_type="SUCCESS", result=unique_particles)

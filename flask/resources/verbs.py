@@ -1,55 +1,41 @@
-import traceback
-from flask_restplus import Namespace, reqparse
+from flask_restplus import Namespace, reqparse, Resource
 
 from core.mongo_db import (
     get_all_unique_field_values,
     gen_restrict_access_query,
 )
-from core.utils import token_required
-
-from core.resource import (
-    CustomResource,
+from core.response import (
+    return_500_for_sever_error,
+    return_401_for_no_auth,
+    CustomeResponse,
 )
 
 api = Namespace("verbs", description="Verbs related operations")
-
-
-unique_verbs = []
 
 parser_header = reqparse.RequestParser()
 parser_header.add_argument("Authorization", type=str, location="headers")
 
 
 @api.route("/")
-class Verbs(CustomResource):
+class Verbs(Resource, CustomeResponse):
     @api.doc("list_verbs")
     @api.expect(parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def get(self, **kwargs):
-        try:
-            query = (
-                {}
-                if self.is_admin(kwargs["user_info"])
-                else gen_restrict_access_query()
-            )
-            verbs = get_all_unique_field_values("verb", query=query)
-            return self.send(status=200, result=verbs)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        query = {} if kwargs["auth_user"].is_admin() else gen_restrict_access_query()
+        verbs = get_all_unique_field_values("verb", query=query)
+        return self.send(response_type="SUCCESS", result=verbs)
 
 
 @api.route("/<string:verb>/particles")
-class Verb(CustomResource):
+class Verb(Resource, CustomeResponse):
     @api.expect(parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def get(self, verb, **kwargs):
-        try:
-            query = {"verb": verb}
-            if not self.is_admin(kwargs["user_info"]):
-                query.update(gen_restrict_access_query())
-            particles = get_all_unique_field_values("particle", query=query)
-            return self.send(status=200, result=particles)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        query = {"verb": verb}
+        if not kwargs["auth_user"].is_admin():
+            query.update(gen_restrict_access_query())
+        particles = get_all_unique_field_values("particle", query=query)
+        return self.send(response_type="SUCCESS", result=particles)

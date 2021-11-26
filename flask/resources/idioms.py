@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
 import traceback
 from bson import ObjectId
-from flask import request
-from flask_restplus import Namespace, Resource, fields, reqparse
+from flask_restplus import Namespace, reqparse, Resource
 
-from core.resource import CustomResource
-from core.utils import token_required
+from core.response import (
+    return_500_for_sever_error,
+    return_401_for_no_auth,
+    CustomeResponse,
+)
+
 from core.mongo_db import (
     mongo,
     gen_match_and_query,
@@ -19,6 +21,7 @@ from core.mongo_db import (
     gen_user_active_like_query,
     gen_return_fields_query,
 )
+from core.resource import token_checker
 
 api = Namespace("idioms", description="Idioms related operations")
 
@@ -124,7 +127,7 @@ def get_idioms_like_count(idiom_id):
 def get_user_like_active_status(user_info, target):
     if user_info:
         query = gen_user_active_like_query(
-            user_info["id"],
+            user_info.id,
             field_key="idiomId",
             field_value=target,
         )
@@ -220,81 +223,64 @@ def upsert_idiom(idiom_info):
 
 
 @api.route("/")
-class Idioms(CustomResource):
+class Idioms(Resource, CustomeResponse):
     @api.doc("list_idioms")
     @api.expect(parser_search_idiom, parser_header)
-    @token_required
+    @token_checker
+    @return_500_for_sever_error
     def get(self, **kwargs):
-        """List all idioms"""
-        try:
-            admin = self.is_admin(kwargs["user_info"])
+        admin = kwargs["auth_user"] and kwargs["auth_user"].is_admin()
 
-            args = parser_search_idiom.parse_args()
-            if args["only_idiom"]:
-                if admin:
-                    result = get_only_idioms()
-                else:
-                    result = get_only_public_idioms()
-            elif args["random_count"] is not None:
-                if admin:
-                    result = get_random_idioms(count=args["random_count"])
-                else:
-                    result = get_random_public_idioms(count=args["random_count"])
+        args = parser_search_idiom.parse_args()
+        if args["only_idiom"]:
+            if admin:
+                result = get_only_idioms()
             else:
-                result = get_idioms(
-                    search_key=args["search_key"],
-                    full_search=args["full_search"],
-                    exact=args["exact"],
-                    admin=admin,
-                )
-            if result is None:
-                self.send(status=500)
-            return self.send(status=200, result=result)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+                result = get_only_public_idioms()
+        elif args["random_count"] is not None:
+            if admin:
+                result = get_random_idioms(count=args["random_count"])
+            else:
+                result = get_random_public_idioms(count=args["random_count"])
+        else:
+            result = get_idioms(
+                search_key=args["search_key"],
+                full_search=args["full_search"],
+                exact=args["exact"],
+                admin=admin,
+            )
+        return self.send(response_type="SUCCESS", result=result)
 
     @api.doc("add an idiom")
     @api.expect(parser_create, parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def post(self, **kwargs):
         """Add an idiom"""
-        try:
-            if not self.is_admin(kwargs["user_info"]):
-                return self.send(status=403)
+        if not kwargs["auth_user"].is_admin():
+            return self.send(response_type="FORBIDDEN")
 
-            args = parser_create.parse_args()
-            print(args)
-            result = upsert_idiom(args)
-            status = 201 if result else 400
-            return self.send(status=status)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        args = parser_create.parse_args()
+        result = upsert_idiom(args)
+        status = "CREATED" if result else "FAIL"
+        return self.send(response_type=status)
 
     @api.doc("delete an idiom")
     @api.expect(parser_delete, parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def delete(self, **kwargs):
         """Delete an idiom"""
-        try:
-            if not self.is_admin(kwargs["user_info"]):
-                return self.send(status=403)
-            args = parser_delete.parse_args()
-            result = delete_idiom(args)
-            status = 200 if result else 400
-            return self.send(status=status)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        if not kwargs["auth_user"].is_admin():
+            return self.send(response_type="FORBIDDEN")
+        args = parser_delete.parse_args()
+        result = delete_idiom(args)
+        status = "NO_CONTENT" if result else "FAIL"
+        return self.send(response_type=status)
 
 
 def get_idiom_with_dictionary(idiom):
-    try:
-        return stringify_docs(mongo.db.idioms.find({"expression": idiom}))
-    except:
-        traceback.print_exc()
-        return None
+    return stringify_docs(mongo.db.idioms.find({"expression": idiom}))
 
 
 def get_idiom(idiom):
@@ -319,77 +305,81 @@ def upsert_idiom_dictionary(idiom, data):
         return False
 
 
+parser_random = reqparse.RequestParser()
+parser_random.add_argument("count", type=int, location="args")
+
+
+@api.route("/random")
+class PhrasalVerbs(Resource, CustomeResponse):
+    @api.expect(parser_random)
+    @return_500_for_sever_error
+    def get(self):
+        """List random phrasal verbs"""
+        args = parser_random.parse_args()
+        return self.send(
+            response_type="SUCCESS", result=get_random_idioms(args["count"])
+        )
+
+
 @api.route("/<string:idiom>")
-class Idiom(CustomResource):
+class Idiom(Resource, CustomeResponse):
     @api.expect(parser_header)
-    @token_required
+    @token_checker
+    @return_500_for_sever_error
     def get(self, idiom, **kwargs):
         """Get a idiom verb"""
-        try:
-            if self.is_admin(kwargs["user_info"]):
-                result = get_idiom_with_dictionary(idiom)
-            else:
-                result = get_idiom(idiom)
-            status = 200 if result else 404
-            return self.send(status=status, result=result)
-
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        if kwargs["auth_user"] and kwargs["auth_user"].is_admin():
+            result = get_idiom_with_dictionary(idiom)
+        else:
+            result = get_idiom(idiom)
+        if result:
+            return self.send(response_type="SUCCESS", result=result)
+        else:
+            return self.send(response_type="NOT_FOUND")
 
     @api.expect(parser_header, parser_dictionary)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def put(self, idiom, **kwargs):
-        try:
-            print(idiom)
-            if kwargs["user_info"] is None:
-                return self.send(status=401)
-            args = parser_dictionary.parse_args()
-            dictionary = {
-                "definitions": args.definitions,
-                "examples": args.examples,
-                "sources": args.dictionaries,
-                "uploaded_datetime": args.datetime,
-            }
-            result = upsert_idiom_dictionary(idiom, dictionary)
-            status = 200 if result else 404
-            return self.send(status=status)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        if not kwargs["auth_user"].is_admin():
+            return self.send(response_type="FORBIDDEN")
+
+        args = parser_dictionary.parse_args()
+        dictionary = {
+            "definitions": args.definitions,
+            "examples": args.examples,
+            "sources": args.dictionaries,
+            "uploaded_datetime": args.datetime,
+        }
+        if upsert_idiom_dictionary(idiom, dictionary):
+            return self.send(response_type="SUCCESS")
+        else:
+            return self.send(response_type="FAIL")
 
 
 @api.route("/likes")
-class IdiomLikes(CustomResource):
+class IdiomLikes(Resource, CustomeResponse):
     @api.doc("idiom likes")
     @api.expect(parser_get_idiom_like)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def get(self, **kwargs):
-        try:
-            args = parser_get_idiom_like.parse_args()
-            result = {
-                "count": get_idioms_like_count(args["idiom_id"]),
-                "active": get_user_like_active_status(
-                    kwargs["user_info"], args["idiom_id"]
-                ),
-            }
-            return self.send(status=200, result=result)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        args = parser_get_idiom_like.parse_args()
+        result = {
+            "count": get_idioms_like_count(args["idiom_id"]),
+            "active": get_user_like_active_status(
+                kwargs["auth_user"], args["idiom_id"]
+            ),
+        }
+        return self.send(response_type="SUCCESS", result=result)
 
     @api.expect(parser_like_create, parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def post(self, **kwargs):
-        try:
-            if kwargs["user_info"] is None:
-                return self.send(status=401)
-            args = parser_like_create.parse_args()
-            result = update_user_like_idiom(kwargs["user_info"]["id"], args)
-            if result:
-                return self.send(status=200)
-            else:
-                return self.send(status=400)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        args = parser_like_create.parse_args()
+        result = update_user_like_idiom(kwargs["auth_user"].id, args)
+        if result:
+            return self.send(response_type="SUCCESS")
+        else:
+            return self.send(response_type="FAIL")

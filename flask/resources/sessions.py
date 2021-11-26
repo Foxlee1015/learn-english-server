@@ -1,9 +1,8 @@
-import traceback
 from flask_restplus import Namespace, reqparse, Resource
 
 from core.db import redis_store
 from .users import get_user_if_verified
-from core.utils import token_required, random_string_digits
+from core.utils import random_string_digits
 from core.response import (
     CustomeResponse,
     return_401_for_no_auth,
