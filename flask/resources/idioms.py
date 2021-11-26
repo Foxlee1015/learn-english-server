@@ -34,11 +34,12 @@ def get_only_public_idioms():
     return mongo.db.idioms.distinct("expression", gen_restrict_access_query())
 
 
-def get_random_idioms(count):
+def get_random_public_idioms(count):
     try:
         match_and_filters = [
             gen_not_empty_array_query("definitions"),
             gen_not_empty_array_query("sentences"),
+            gen_restrict_access_query(),
         ]
         query = [
             gen_match_and_query(match_and_filters),
@@ -67,10 +68,10 @@ def get_random_public_idioms(count):
         return None
 
 
-def get_idioms(search_key=None, full_search=0, exact=0, admin=False):
+def get_idioms(search_key=None, full_search=0, exact=0, only_public=False):
     try:
         query = {}
-        if not admin:
+        if not only_public:
             query = gen_restrict_access_query()
         if search_key is not None:
             if full_search:
@@ -160,9 +161,6 @@ parser_create.add_argument("is_public", type=int, help="Public")
 
 parser_search_idiom = reqparse.RequestParser()
 parser_search_idiom.add_argument(
-    "only_idiom", type=int, location="args", help="Return only idioms when true value"
-)
-parser_search_idiom.add_argument(
     "search_key", type=str, help="To search in idiom field", location="args"
 )
 parser_search_idiom.add_argument(
@@ -174,10 +172,6 @@ parser_search_idiom.add_argument(
 parser_search_idiom.add_argument(
     "exact", type=int, help="Search exact search key when 1", location="args"
 )
-parser_search_idiom.add_argument(
-    "random_count", type=int, location="args", help="Get random verbs"
-)
-
 
 parser_delete = reqparse.RequestParser()
 parser_delete.add_argument("_id", type=str, help="_id", location="args")
@@ -229,26 +223,16 @@ class Idioms(Resource, CustomeResponse):
     @token_checker
     @return_500_for_sever_error
     def get(self, **kwargs):
-        admin = kwargs["auth_user"] and kwargs["auth_user"].is_admin()
-
+        only_public = (
+            False if kwargs["auth_user"] and kwargs["auth_user"].is_admin() else False
+        )
         args = parser_search_idiom.parse_args()
-        if args["only_idiom"]:
-            if admin:
-                result = get_only_idioms()
-            else:
-                result = get_only_public_idioms()
-        elif args["random_count"] is not None:
-            if admin:
-                result = get_random_idioms(count=args["random_count"])
-            else:
-                result = get_random_public_idioms(count=args["random_count"])
-        else:
-            result = get_idioms(
-                search_key=args["search_key"],
-                full_search=args["full_search"],
-                exact=args["exact"],
-                admin=admin,
-            )
+        result = get_idioms(
+            search_key=args["search_key"],
+            full_search=args["full_search"],
+            exact=args["exact"],
+            only_public=only_public,
+        )
         return self.send(response_type="SUCCESS", result=result)
 
     @api.doc("add an idiom")
@@ -317,7 +301,7 @@ class PhrasalVerbs(Resource, CustomeResponse):
         """List random phrasal verbs"""
         args = parser_random.parse_args()
         return self.send(
-            response_type="SUCCESS", result=get_random_idioms(args["count"])
+            response_type="SUCCESS", result=get_random_public_idioms(args["count"])
         )
 
 
