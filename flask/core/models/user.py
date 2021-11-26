@@ -15,7 +15,7 @@ class User(BaseModel):
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True)
+    email = db.Column(db.String(120))
     password = db.Column(db.String(100), nullable=False)
     login_try_count = db.Column(db.Integer, default=0)
     role_id = db.Column(
@@ -36,6 +36,7 @@ class User(BaseModel):
             id=self.id,
             username=self.username,
             email=self.email,
+            is_admin=1 if self.is_admin() else 0,
         )
 
     def set_password(self, password):

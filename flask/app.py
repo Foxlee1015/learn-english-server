@@ -3,7 +3,6 @@ from flask import Flask
 from flask_cors import CORS
 
 from resources import blueprint as api
-from core.db import init_db
 from core.mongo_db import mongo_uri, mongo
 from core.config import config_by_name
 from core.errors import DbConnectError
@@ -14,7 +13,6 @@ from core.database import db
 
 def init_settings():
     try:
-        init_db()
         execute_command_ssh("ls")
         set_mongodb_indexes()
     except DbConnectError as e:

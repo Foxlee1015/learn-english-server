@@ -1,58 +1,33 @@
 import traceback
 from bson import ObjectId
 
-from flask_restplus import Namespace, Resource, fields, reqparse
+from flask_restplus import Namespace, reqparse, Resource
+from core.response import (
+    return_500_for_sever_error,
+    return_401_for_no_auth,
+    gen_dupilcate_keys_message,
+    CustomeResponse,
+)
 
-from core.db import (
-    insert_user,
-    get_user,
-    get_users,
-    delete_users,
-    backup_db,
-    get_user_hashed_password_with_user_id,
-)
-from core.resource import (
-    CustomResource,
-    json_serializer,
-    json_serializer_all_datetime_keys,
-)
-from core.utils import token_required, verify_password
+from core.models import User as UserModel, UserRole as UserRoleModel
+from core.database import db
 from core.mongo_db import mongo, gen_user_like_query, stringify_docs, gen_in_query
 
 
 api = Namespace("users", description="Users related operations")
 
 
-def _get_users():
-    try:
-        users = get_users()
-        for user in users:
-            user = json_serializer_all_datetime_keys(user)
-        return users
-    except:
-        traceback.print_exc()
-        return None
+def get_users() -> list:
+    users = UserModel.query.all()
+    return [user.serialize for user in users]
 
 
-def _create_user(name, email, password, user_type=2):
-    try:
-        result = insert_user(name, email, password, user_type)
-        return result
-    except:
-        traceback.print_exc()
-        return None
-
-
-def get_user_if_verified(name, password):
-    try:
-        user_info = get_user_hashed_password_with_user_id(name)
-        if user_info:
-            if verify_password(password, user_info["salt"], user_info["password"]):
-                return get_user(id_=user_info["id"])
-        return None
-    except:
-        traceback.print_exc()
-        return None
+def get_user_if_verified(username, password):
+    user = UserModel.query.filter_by(username=username).first()
+    if user:
+        if user.check_password(password):
+            return user
+    return None
 
 
 def get_user_idioms_count(user_id):
@@ -105,6 +80,47 @@ def get_user_phrasal_verbs(user_id):
         return None
 
 
+def get_user_by_username(username) -> dict:
+    user = UserModel.query.filter_by(username=username).first()
+    return user.serialize if user else None
+
+
+def get_user_by_email(email) -> dict:
+    user = UserModel.query.filter_by(email=email).first()
+    return user.serialize if user else None
+
+
+def check_user_info_duplicates(args) -> list:
+    result = []
+    if args.get("username") is not None:
+        if get_user_by_username(args.get("username")):
+            result.append("username")
+
+    if args.get("email") is not None:
+        if get_user_by_email(args.get("email")):
+            result.append("email")
+    return result
+
+
+def get_user_by_id(id_) -> dict:
+    user = UserModel.query.get(id_)
+    return user.serialize if user else None
+
+
+def create_user(args) -> dict:
+    general_user_role = UserRoleModel.query.filter_by(name="general").first()
+    user = UserModel(
+        args["name"], args.get("email"), args["password"], general_user_role.id
+    )
+    user.create()
+    return user
+
+
+def delete_user(id_) -> None:
+    UserModel.query.filter_by(id=id_).delete()
+    db.session.commit()
+
+
 parser_create = reqparse.RequestParser()
 parser_create.add_argument(
     "name", type=str, required=True, location="form", help="Unique user name"
@@ -132,143 +148,96 @@ parser_likes.add_argument("count", type=int, location="args", help="When constan
 
 
 @api.route("/")
-class Users(CustomResource):
+class Users(Resource, CustomeResponse):
     @api.doc("list_users")
     @api.expect(parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def get(self, **kwargs):
         """List all users
 
         NOTE: Only for admin users
         """
-        try:
-            if not self.is_admin(kwargs["user_info"]):
-                return self.send(status=403)
-            return self.send(status=200, result=_get_users())
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        if kwargs["auth_user"].is_admin():
+            return self.send(response_type="SUCCESS", result=get_users())
+
+        return self.send(response_type="FORBIDDEN")
 
     @api.doc("create a new user")
     @api.expect(parser_create)
+    @return_500_for_sever_error
     def post(self):
         """Create an user"""
-        try:
-            args = parser_create.parse_args()
-            name = args["name"]
-            email = args["email"]
-            password = args["password"]
-            password_confirm = args["password_confirm"]
-
-            if password_confirm != password:
-                return self.send(
-                    status=400, message="Password and Confirm password have to be same"
-                )
-            if get_user(name=name):
-                return self.send(
-                    status=400, message="The given username alreay exists."
-                )
-
-            result = _create_user(name, email, password)
-            if result:
-                return self.send(status=201)
-            else:
-                return self.send(status=500)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
-
-    @api.doc("delete_users")
-    @api.expect(parser_delete, parser_header)
-    @token_required
-    def delete(self, **kwargs):
-        """Delete all users
-
-        NOTE: Only for admin users or user owner
-        """
-        try:
-            if not self.is_admin(kwargs["user_info"]):
-                return self.send(status=403)
-
-            args = parser_delete.parse_args()
-            result = delete_users(args["ids"])
-            if result:
-                return self.send(status=200)
-            return self.send(status=400, message="Check user ids")
-
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        args = parser_create.parse_args()
+        if duplicate_keys := check_user_info_duplicates(args):
+            return self.send(
+                response_type="FAIL",
+                additional_message=gen_dupilcate_keys_message(duplicate_keys),
+            )
+        result = create_user(args)
+        return self.send(response_type="CREATED", result=result.id)
 
 
 @api.route("/<int:id_>")
 @api.param("id_", "The user identifier")
-class User(CustomResource):
+class User(Resource, CustomeResponse):
     @api.doc("get_user")
     @api.expect(parser_header)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def get(self, id_, **kwargs):
         """Fetch a user given its identifier"""
-        if kwargs["user_info"] is None:
-            return self.send(status=401)
-        if self.is_admin(kwargs["user_info"]) or id_ == kwargs["user_info"]["id"]:
-            user = get_user(id_=id_)
-            if user:
-                user = json_serializer_all_datetime_keys(user)
-                return self.send(status=200, result=user)
-            else:
-                return self.send(status=404)
-        else:
-            return self.send(status=401)
+        if user := get_user_by_id(id_):
+            if kwargs["auth_user"].is_admin() or kwargs["auth_user"].id == id_:
+                return self.send(response_type="SUCCESS", result=user)
+        return self.send(response_type="NOT_FOUND")
+
+    @api.doc("delete_users")
+    @api.expect(parser_delete, parser_header)
+    @return_401_for_no_auth
+    @return_500_for_sever_error
+    def delete(self, id_, **kwargs):
+        """Delete all users
+
+        NOTE: Only for admin users or user owner
+        """
+        if get_user_by_id(id_):
+            if kwargs["auth_user"].is_admin():
+                delete_user(id_)
+                return self.send(response_type="NO_CONTENT")
+            return self.send(response_type="FORBIDDEN")
+        return self.send(response_type="NOT_FOUND")
 
 
 @api.route("/idioms")
-class UserLikesIdioms(CustomResource):
+class UserLikesIdioms(Resource, CustomeResponse):
     @api.doc("get_user_idioms_likes")
     @api.expect(parser_header, parser_likes)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def get(self, **kwargs):
-        try:
-            if kwargs["user_info"] is None:
-                return self.send(status=401)
-            user_id = kwargs["user_info"]["id"]
-
-            args = parser_likes.parse_args()
-            if args["count"]:
-                result = get_user_idioms_count(user_id)
-            else:
-                result = get_user_idioms(user_id)
-
-            if result is None:
-                return self.send(status=500)
-
-            return self.send(status=200, result=result)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        user_id = kwargs["auth_user"].id
+        args = parser_likes.parse_args()
+        result = (
+            get_user_idioms_count(user_id)
+            if args["count"]
+            else get_user_idioms(user_id)
+        )
+        return self.send(response_type="SUCCESS", result=result)
 
 
 @api.route("/phrasal-verbs")
-class UserLikesPhrasalVerbs(CustomResource):
+class UserLikesPhrasalVerbs(Resource, CustomeResponse):
     @api.doc("get_user_phrasal_verbs_likes")
     @api.expect(parser_header, parser_likes)
-    @token_required
+    @return_401_for_no_auth
+    @return_500_for_sever_error
     def get(self, **kwargs):
-        try:
-            if kwargs["user_info"] is None:
-                return self.send(status=401)
-            user_id = kwargs["user_info"]["id"]
-
-            args = parser_likes.parse_args()
-            if args["count"]:
-                result = get_user_phrasal_verbs_count(user_id)
-            else:
-                result = get_user_phrasal_verbs(user_id)
-
-            if result is None:
-                return self.send(status=500)
-
-            return self.send(status=200, result=result)
-        except:
-            traceback.print_exc()
-            return self.send(status=500)
+        user_id = kwargs["auth_user"].id
+        args = parser_likes.parse_args()
+        result = (
+            get_user_phrasal_verbs_count(user_id)
+            if args["count"]
+            else get_user_phrasal_verbs(user_id)
+        )
+        return self.send(response_type="SUCCESS", result=result)
