@@ -39,6 +39,10 @@ class User(BaseModel):
             is_admin=1 if self.is_admin() else 0,
         )
 
+    @staticmethod
+    def generate_hashed_password(password):
+        return generate_password_hash(password)
+
     def set_password(self, password):
         self.password = generate_password_hash(password)
 

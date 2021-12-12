@@ -52,3 +52,12 @@ class BaseModel(db.Model):
                 value = value.isoformat()
             result[key] = value
         return result
+
+    @classmethod
+    def get_by_id(cls, id_):
+        return cls.query.get(id_)
+
+    @classmethod
+    def delete_by_id(cls, id_):
+        cls.query.filter_by(id=id_).delete()
+        db.session.commit()

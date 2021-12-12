@@ -38,7 +38,9 @@ class Session(Resource, CustomeResponse):
     @return_500_for_sever_error
     def post(self):
         """Create a session after verifying user info"""
+        print("tst")
         args = parser_create.parse_args()
+        print(args)
         user = get_user_if_verified(args["username"], args["password"])
         if user:
             result = {

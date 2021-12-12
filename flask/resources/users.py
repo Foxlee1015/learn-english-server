@@ -121,6 +121,14 @@ def delete_user(id_) -> None:
     db.session.commit()
 
 
+def update_user(user, arg) -> None:
+    if arg["password"] is not None:
+        user.password = UserModel.generate_hashed_password(arg["password"])
+    if arg["email"] is not None:
+        user.email = arg["email"]
+    db.session.commit()
+
+
 parser_create = reqparse.RequestParser()
 parser_create.add_argument(
     "name", type=str, required=True, location="form", help="Unique user name"
@@ -204,6 +212,18 @@ class User(Resource, CustomeResponse):
         if get_user_by_id(id_):
             if kwargs["auth_user"].is_admin():
                 delete_user(id_)
+                return self.send(response_type="NO_CONTENT")
+            return self.send(response_type="FORBIDDEN")
+        return self.send(response_type="NOT_FOUND")
+
+    @api.expect(parser_create, parser_header)
+    @return_401_for_no_auth
+    @return_500_for_sever_error
+    def put(self, id_, **kwargs):
+        if UserModel.get_by_id(id_):
+            if kwargs["auth_user"].is_admin():
+                args = parser_create.parse_args()
+                update_user(UserModel.query.get(id_), args)
                 return self.send(response_type="NO_CONTENT")
             return self.send(response_type="FORBIDDEN")
         return self.send(response_type="NOT_FOUND")
