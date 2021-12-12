@@ -224,7 +224,7 @@ class Idioms(Resource, CustomeResponse):
     @return_500_for_sever_error
     def get(self, **kwargs):
         only_public = (
-            False if kwargs["auth_user"] and kwargs["auth_user"].is_admin() else False
+            False if kwargs["auth_user"] and kwargs["auth_user"].is_admin() else True
         )
         args = parser_search_idiom.parse_args()
         result = get_idioms(

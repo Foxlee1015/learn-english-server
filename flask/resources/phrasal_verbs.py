@@ -283,7 +283,7 @@ class PhrasalVerbs(Resource, CustomeResponse):
     def get(self, **kwargs):
         """List all phrasal verbs"""
         only_public = (
-            False if kwargs["auth_user"] and kwargs["auth_user"].is_admin() else False
+            False if kwargs["auth_user"] and kwargs["auth_user"].is_admin() else True
         )
         args = parser_search_verb.parse_args()
         result = get_verbs_from_phrasal_verbs(
