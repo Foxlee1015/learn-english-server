@@ -60,6 +60,12 @@ def get_phrasal_verb(phrasal_verb):
         traceback.print_exc()
         return None
 
+        
+def update_cached_phrasal_verb_list():
+    phrasal_verb_list = get_verbs_from_phrasal_verbs()
+    redis_store.set('phrasal_verb_list', json.dumps(phrasal_verb_list))
+
+
 def get_cached_phrasal_verb_list():
     if phrasal_verb_list := redis_store.get("phrasal_verb_list"):
         return json.loads(phrasal_verb_list)
@@ -322,6 +328,7 @@ class PhrasalVerbs(Resource, CustomeResponse):
         result = upsert_phrasal_verb(args)
         if result:
             start_crawler_job()
+            update_cached_phrasal_verb_list()
             return self.send(response_type="CREATED")
         else:
             return self.send(response_type="FAIL")
@@ -336,6 +343,7 @@ class PhrasalVerbs(Resource, CustomeResponse):
             return self.send(response_type="FORBIDDEN")
         args = parser_delete.parse_args()
         result = delete_phrasal_verbs(args)
+        update_cached_phrasal_verb_list()
         status = "NO_CONTENT" if result else "FAIL"
         return self.send(status=status)
 
