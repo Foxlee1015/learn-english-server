@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from dotenv import load_dotenv
+import json
 import os
 import traceback
 from bson import ObjectId
@@ -12,6 +13,7 @@ from core.response import (
     return_500_for_sever_error,
     return_401_for_no_auth,
 )
+from core.db import redis_store
 from core.utils import execute_command_ssh
 from core.mongo_db import (
     mongo,
@@ -58,6 +60,13 @@ def get_phrasal_verb(phrasal_verb):
         traceback.print_exc()
         return None
 
+def get_cached_phrasal_verb_list():
+    if phrasal_verb_list := redis_store.get("phrasal_verb_list"):
+        return json.loads(phrasal_verb_list)
+    else:
+        phrasal_verb_list = get_verbs_from_phrasal_verbs()
+        redis_store.set('phrasal_verb_list', json.dumps(phrasal_verb_list))
+        return phrasal_verb_list
 
 def get_verbs_from_phrasal_verbs(
     search_key=None, full_search=0, exact=0, only_public=True
@@ -286,12 +295,19 @@ class PhrasalVerbs(Resource, CustomeResponse):
             False if kwargs["auth_user"] and kwargs["auth_user"].is_admin() else True
         )
         args = parser_search_verb.parse_args()
-        result = get_verbs_from_phrasal_verbs(
-            search_key=args["search_key"],
-            full_search=args["full_search"],
-            exact=args["exact"],
-            only_public=only_public,
-        )
+        search_key = args["search_key"]
+        full_search=args["full_search"]
+        exact=args["exact"]
+
+        if any([search_key, full_search, exact]):
+            result = get_verbs_from_phrasal_verbs(
+                search_key=search_key,
+                full_search=full_search,
+                exact=exact,
+                only_public=only_public,
+            )
+        else:
+            result = get_cached_phrasal_verb_list()
         return self.send(response_type="SUCCESS", result=result)
 
     @api.doc("add a phrasal verb")
