@@ -305,15 +305,15 @@ class PhrasalVerbs(Resource, CustomeResponse):
         full_search=args["full_search"]
         exact=args["exact"]
 
-        if any([search_key, full_search, exact]):
+        if only_public and not any([search_key, full_search, exact]):
+            result = get_cached_phrasal_verb_list()
+        else:
             result = get_verbs_from_phrasal_verbs(
                 search_key=search_key,
                 full_search=full_search,
                 exact=exact,
                 only_public=only_public,
             )
-        else:
-            result = get_cached_phrasal_verb_list()
         return self.send(response_type="SUCCESS", result=result)
 
     @api.doc("add a phrasal verb")
