@@ -185,7 +185,7 @@ def get_phrasal_verbs_like(phrasal_verb_id):
 def get_user_like_active_status(user_info, target):
     if user_info:
         query = gen_user_active_like_query(
-            user_info["id"],
+            user_info.id,
             field_key="phrasalVerbId",
             field_value=target,
         )
