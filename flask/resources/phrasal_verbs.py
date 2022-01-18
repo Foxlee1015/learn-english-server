@@ -345,8 +345,8 @@ class PhrasalVerbs(Resource, CustomeResponse):
         args = parser_delete.parse_args()
         result = delete_phrasal_verbs(args)
         update_cached_phrasal_verb_list()
-        status = "NO_CONTENT" if result else "FAIL"
-        return self.send(status=status)
+        response_type = "NO_CONTENT" if result else "FAIL"
+        return self.send(response_type=response_type)
 
 
 @api.route("/random")
