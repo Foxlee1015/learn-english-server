@@ -219,7 +219,7 @@ def start_crawler(keyword_):
         APP_ROOT = os.path.join(os.path.dirname(__file__), "..")
         dotenv_path = os.path.join(APP_ROOT, ".env")
         load_dotenv(dotenv_path)
-        cmd = f'{os.getenv("CRAWLER")} {keyword_} phrasal_verbs env'
+        cmd = f'{os.getenv("CRAWLER")} {keyword_} phrasal_verbs server'
         execute_command_ssh(cmd)
     except:
         traceback.print_exc()
