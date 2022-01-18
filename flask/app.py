@@ -3,17 +3,15 @@ from flask import Flask
 from flask_cors import CORS
 
 from resources import blueprint as api
-from core.mongo_db import mongo_uri, mongo
+from core.mongo_db import mongo
 from core.config import config_by_name
 from core.errors import DbConnectError
-from core.utils import execute_command_ssh
 from resources.particles import update_unique_particles_job
 from core.database import db
 
 
 def init_settings():
     try:
-        execute_command_ssh("ls")
         set_mongodb_indexes()
     except DbConnectError as e:
         print(e)
@@ -53,9 +51,6 @@ def create_app(config_name):
     db.init_app(app)
 
     app.register_blueprint(api, url_prefix="/api")
-    # api.init_app(app)
-    # https://flask-restplus.readthedocs.io/en/stable/scaling.html
-    # Calling Api.init_app() is not required here because registering the blueprint with the app takes care of setting up the routing for the application.
     init_settings()
 
     background_task()

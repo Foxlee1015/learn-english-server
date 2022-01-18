@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from ast import keyword
 from dotenv import load_dotenv
 import json
 import os
@@ -132,12 +133,13 @@ def upsert_phrasal_verb(phrasal_verb_info):
         verb = phrasal_verb_info["verb"]
         particle = phrasal_verb_info["particle"]
         search_query = {"verb": verb, "particle": particle}
-        phrasal_verb_info.update({"phrasal_verb": f"{verb} {particle}"})
+        phrasal_verb = f"{verb} {particle}"
+        phrasal_verb_info.update({"phrasal_verb": phrasal_verb})
         upsert_phrasal_verb = {"$set": phrasal_verb_info}
         rs = mongo.db.phrasal_verbs.update(
             search_query, upsert_phrasal_verb, upsert=True
         )
-        return True
+        return phrasal_verb
 
     except:
         traceback.print_exc()
@@ -212,20 +214,19 @@ def update_user_like_phrasal_verb(user_id, args):
         return None
 
 
-def start_crawler():
+def start_crawler(keyword_):
     try:
         APP_ROOT = os.path.join(os.path.dirname(__file__), "..")
         dotenv_path = os.path.join(APP_ROOT, ".env")
         load_dotenv(dotenv_path)
-        execute_command_ssh(os.getenv("CRAWLER"))
-
+        cmd = f'{os.getenv("CRAWLER")} {keyword_} phrasal_verbs env'
+        execute_command_ssh(cmd)
     except:
         traceback.print_exc()
-        return None
 
 
-def start_crawler_job():
-    thread = Thread(target=start_crawler)
+def start_crawler_job(keyword_):
+    thread = Thread(target=start_crawler, args=(keyword_,))
     thread.daemon = True
     thread.start()
 
@@ -327,7 +328,7 @@ class PhrasalVerbs(Resource, CustomeResponse):
         args = parser_create.parse_args()
         result = upsert_phrasal_verb(args)
         if result:
-            start_crawler_job()
+            start_crawler_job(result.replace(" ", "-"))
             update_cached_phrasal_verb_list()
             return self.send(response_type="CREATED")
         else:
