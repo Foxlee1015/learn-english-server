@@ -3,14 +3,12 @@ version: "3"
 services:
   english_app:
     container_name: english_server
-    # networks:
-    #   - nginx_network
     restart: always
     build: ./flask
     volumes:
       - ./flask/logs:/usr/src/flask_app/logs
-    ports:
-      - "16981:8001"
+    expose:
+      - "8001"
     command: gunicorn -c ./gunicorn.conf.py "app:create_app('prod')"
 
   nginx:
@@ -21,6 +19,3 @@ services:
       - "16211:80"
     depends_on:
       - english_app
-# networks:
-#   nginx_network:
-#     external: true
