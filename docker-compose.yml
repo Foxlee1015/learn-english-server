@@ -18,6 +18,6 @@ services:
     volumes:
       - ./nginx/log:/var/log/nginx
     ports:
-      - "16211:80"
+      - "16981:80"
     depends_on:
       - learn_english_server
