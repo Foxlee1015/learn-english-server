@@ -28,7 +28,7 @@ class ProductionConfig(Config):
     PORT = os.getenv("APP_PORT_PROD")
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI_PROD")
     MONGO_URI = os.getenv("MONGO_DB_URI_PROD")
-    REDIS_URL = os.getenv("REDIS_URL_PROD")
+    REDIS_URL = f'redis://:{os.getenv("REDIS_PASSWORD")}@{os.getenv("REDIS_HOST")}:{os.getenv("REDIS_PORT")}/0'
 
 
 class DevelopmentConfig(Config):

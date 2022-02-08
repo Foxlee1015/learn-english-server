@@ -4,3 +4,5 @@ flask/__pychche__/*
 
 *.pyc
 .env
+*.logs
+*.log
