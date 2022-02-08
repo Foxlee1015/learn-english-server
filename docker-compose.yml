@@ -13,7 +13,7 @@ services:
       - ./.env
     command: gunicorn -c ./gunicorn.conf.py "app:create_app('prod')"
     depends_on:
-      - "${REDIS_HOST}"
+      - "${REDIS}"
 
   nginx:
     container_name: "${NGINX}"
@@ -28,7 +28,7 @@ services:
 
   redis:
     image: redis:4.0.11-alpine
-    container_name: "${REDIS_HOST}"
+    container_name: "${REDIS}"
     command: "redis-server --requirepass ${REDIS_PASSWORD}"
     ports:
       - "${REDIS_PORT}:6379"
