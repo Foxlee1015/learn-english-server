@@ -1,14 +1,15 @@
 import traceback
+import redis
 from flask import Flask
 from flask_cors import CORS
 
-from resources import blueprint as api
-from core.mongo_db import mongo
-from core.config import config_by_name
-from core.errors import DbConnectError
-from resources.particles import update_unique_particles_job
-from resources.users import delete_not_existing_users_likes
-from core.database import db
+from app.core.mongo_db import mongo
+from config import config_by_name
+from app.core.errors import DbConnectError
+from app.resources.particles import update_unique_particles_job
+from app.resources.users import delete_not_existing_users_likes
+from app.core.database import db
+from app.core.redis import redis_client
 
 config = None
 
@@ -29,7 +30,7 @@ def background_task():
 
 def set_db(app):
     with app.app_context():
-        from core.models import user, user_role
+        from app.core.models import user, user_role
 
         db.create_all()
         db.session.commit()
@@ -55,7 +56,8 @@ def create_app(config_name):
 
     CORS(app, resources={r"/api/*": {"origins": "*"}})
     db.init_app(app)
-
+    redis_client.init_app(app)
+    from app.resources import blueprint as api
     app.register_blueprint(api, url_prefix="/api")
     init_settings()
 

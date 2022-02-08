@@ -3,13 +3,13 @@ import traceback
 from bson import ObjectId
 from flask_restplus import Namespace, reqparse, Resource
 
-from core.response import (
+from app.core.response import (
     return_500_for_sever_error,
     return_401_for_no_auth,
     CustomeResponse,
 )
 
-from core.mongo_db import (
+from app.core.mongo_db import (
     mongo,
     gen_match_and_query,
     gen_random_docs_query,
@@ -21,7 +21,7 @@ from core.mongo_db import (
     gen_user_active_like_query,
     gen_return_fields_query,
 )
-from core.resource import token_checker
+from app.core.resource import token_checker
 
 api = Namespace("idioms", description="Idioms related operations")
 

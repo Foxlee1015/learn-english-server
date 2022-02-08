@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from ast import keyword
-from dotenv import load_dotenv
 import json
 import os
 import traceback
@@ -8,15 +6,14 @@ from bson import ObjectId
 from threading import Thread
 from flask_restplus import Namespace, reqparse, Resource
 
-from core.resource import token_checker
-from core.response import (
+from app.core.resource import token_checker
+from app.core.response import (
     CustomeResponse,
     return_500_for_sever_error,
     return_401_for_no_auth,
 )
-from core.db import redis_store
-from core.utils import execute_command_ssh
-from core.mongo_db import (
+from app.core.utils import execute_command_ssh
+from app.core.mongo_db import (
     mongo,
     gen_restrict_access_query,
     gen_query,
@@ -29,6 +26,8 @@ from core.mongo_db import (
     gen_return_fields_query,
     gen_include_query,
 )
+from app.core.redis import redis_client
+
 
 api = Namespace("phrasal-verbs", description="Phrasal_verbs related operations")
 
@@ -64,15 +63,15 @@ def get_phrasal_verb(phrasal_verb):
         
 def update_cached_phrasal_verb_list():
     phrasal_verb_list = get_verbs_from_phrasal_verbs()
-    redis_store.set('phrasal_verb_list', json.dumps(phrasal_verb_list))
+    redis_client.set('phrasal_verb_list', json.dumps(phrasal_verb_list))
 
 
 def get_cached_phrasal_verb_list():
-    if phrasal_verb_list := redis_store.get("phrasal_verb_list"):
+    if phrasal_verb_list := redis_client.get("phrasal_verb_list"):
         return json.loads(phrasal_verb_list)
     else:
         phrasal_verb_list = get_verbs_from_phrasal_verbs()
-        redis_store.set('phrasal_verb_list', json.dumps(phrasal_verb_list))
+        redis_client.set('phrasal_verb_list', json.dumps(phrasal_verb_list))
         return phrasal_verb_list
 
 def get_verbs_from_phrasal_verbs(
@@ -216,10 +215,8 @@ def update_user_like_phrasal_verb(user_id, args):
 
 def start_crawler(keyword_):
     try:
-        APP_ROOT = os.path.join(os.path.dirname(__file__), "..")
-        dotenv_path = os.path.join(APP_ROOT, ".env")
-        load_dotenv(dotenv_path)
-        cmd = f'{os.getenv("CRAWLER")} {keyword_} phrasal_verbs server'
+        from app import config
+        cmd = f'{config.CRAWLER} {keyword_} phrasal_verbs server'
         execute_command_ssh(cmd)
     except:
         traceback.print_exc()

@@ -3,9 +3,8 @@ from datetime import date, datetime
 from flask_restplus import Resource
 
 from flask import current_app, request
-from core.response import CustomeResponse
-from core.db import redis_store
-
+from app.core.response import CustomeResponse
+from app.core.redis import redis_client
 
 class CustomResource(Resource):
     def __init__(self, api=None, *args, **kwargs):
@@ -30,12 +29,12 @@ class CustomResource(Resource):
 def token_checker(f):
     def wrapper(*args, **kwargs):
         user = None
-        from core.models import User as UserModel
+        from app.core.models import User as UserModel
 
         if current_app.config["TESTING"]:
             return f(*args, **kwargs, auth_user=UserModel.query.get(1))
         if auth_header := request.headers.get("Authorization"):
-            if user_id := redis_store.get(auth_header):
+            if user_id := redis_client.get(auth_header):
                 user = UserModel.query.get(user_id)
         return f(*args, **kwargs, auth_user=user)
 

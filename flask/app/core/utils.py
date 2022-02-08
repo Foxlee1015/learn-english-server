@@ -1,25 +1,13 @@
 from datetime import datetime
-import jwt
-import os
 import paramiko
 import traceback
 import string
 import random
 import hashlib
 
-from flask import request, current_app
-from flask_restplus import abort
-from dotenv import load_dotenv
+from flask import request
 
-
-APP_ROOT = os.path.join(os.path.dirname(__file__), "..")  # refers to application_top
-dotenv_path = os.path.join(APP_ROOT, ".env")
-load_dotenv(dotenv_path)
-
-host = os.getenv("SSH_HOST")
-port = int(os.getenv("SSH_PORT"))
-usr = os.getenv("SSH_USER")
-pwd = os.getenv("SSH_PASSWORD")
+from app.core.redis import redis_client
 
 
 def token_required(f):
@@ -27,9 +15,9 @@ def token_required(f):
         auth_header = request.headers.get("Authorization")
         user_info = None
         if auth_header:
-            from .db import redis_store, get_user
+            from app.core.db import get_user
 
-            user_id = redis_store.get(auth_header)
+            user_id = redis_client.get(auth_header)
             if user_id:
                 user_info = get_user(user_id)
         return f(*args, **kwargs, user_info=user_info)
@@ -43,7 +31,8 @@ def execute_command_ssh(cmd):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(host, port, usr, pwd)
+        from app import config
+        client.connect(config.SSH_HOST, config.SSH_PORT, config.SSH_USER, config.SSH_PASSWORD)
     except paramiko.ssh_exception.SSHException:  # tcp timeout
         traceback.print_exc()
         return None, None

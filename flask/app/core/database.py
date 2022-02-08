@@ -1,7 +1,6 @@
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-
 from flask_sqlalchemy import SQLAlchemy, declarative_base
 
 Base = declarative_base()

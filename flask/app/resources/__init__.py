@@ -1,6 +1,5 @@
 from flask import Blueprint
 from flask_restplus import Api
-import jwt
 
 from .logs import api as logs
 from .sessions import api as sessions

@@ -1,14 +1,14 @@
 from flask_restplus import Namespace, reqparse, Resource
 
-from core.db import redis_store
-from .users import get_user_if_verified
-from core.utils import random_string_digits
-from core.response import (
+from app.resources.users import get_user_if_verified
+from app.core.utils import random_string_digits
+from app.core.response import (
     CustomeResponse,
     return_401_for_no_auth,
     return_500_for_sever_error,
 )
-from core.variables import TOKEN_VALID_TIME
+from app.core.variables import TOKEN_VALID_TIME
+from app.core.redis import redis_client
 
 api = Namespace("sessions", description="Sessions related operations")
 
@@ -23,7 +23,7 @@ parser_header.add_argument("Authorization", type=str, required=True, location="h
 
 def create_session(user_id):
     session_id = random_string_digits(30)
-    redis_store.set(name=session_id, value=user_id, ex=TOKEN_VALID_TIME)
+    redis_client.set(name=session_id, value=user_id, ex=TOKEN_VALID_TIME)
     return session_id
 
 
@@ -57,7 +57,7 @@ class Session(Resource, CustomeResponse):
     @return_500_for_sever_error
     def delete(self):
         args = parser_header.parse_args()
-        redis_store.delete(args["Authorization"])
+        redis_client.delete(args["Authorization"])
         return self.send(response_type="NO_CONTENT")
 
 

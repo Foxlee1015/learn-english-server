@@ -1,15 +1,8 @@
 import os
 from flask_pymongo import PyMongo
-from dotenv import load_dotenv
 
-
-# load dotenv in the base root
-APP_ROOT = os.path.join(os.path.dirname(__file__), "..")  # refers to application_top
-dotenv_path = os.path.join(APP_ROOT, ".env")
-load_dotenv(dotenv_path)
 
 mongo = PyMongo()
-mongo_uri = os.getenv("MONGO_DB_URI")
 
 
 def gen_query(field, search_key, exact=0, insensitive_case=True):
@@ -71,7 +64,7 @@ def stringify_docs(docs):
             if key == "_id":
                 value = str(value)
             if key == "created_time":
-                from core.resource import json_serializer
+                from app.core.resource import json_serializer
 
                 value = json_serializer(value)
             item[key] = value

@@ -2,10 +2,10 @@ import time
 from flask_restplus import Namespace, Resource
 from threading import Thread
 
-from core.variables import UPDATE_VERB_LIST_TIME
-from core.mongo_db import get_all_unique_field_values
+from app.core.variables import UPDATE_VERB_LIST_TIME
+from app.core.mongo_db import get_all_unique_field_values
 
-from core.response import (
+from app.core.response import (
     return_500_for_sever_error,
     CustomeResponse,
 )

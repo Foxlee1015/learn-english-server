@@ -3,19 +3,19 @@ import json
 
 from flask import Response, current_app, request
 
-from core.constants import response
-from core.db import redis_store
+from app.core.constants import response
+from app.core.redis import redis_client
 
 
 def return_401_for_no_auth(f):
     def wrapper(*args, **kwargs):
         user = None
-        from core.models import User as UserModel
+        from app.core.models import User as UserModel
 
         if current_app.config["TESTING"]:
             return f(*args, **kwargs, auth_user=UserModel.query.get(1))
         if auth_header := request.headers.get("Authorization"):
-            if user_id := redis_store.get(auth_header):
+            if user_id := redis_client.get(auth_header):
                 user = UserModel.query.get(user_id)
         if user is not None:
             return f(*args, **kwargs, auth_user=user)

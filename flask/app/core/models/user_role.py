@@ -1,7 +1,9 @@
 import os
+
 from sqlalchemy import event
-from core.database import db
-from core.models.base import BaseModel
+
+from app.core.database import db
+from app.core.models.base import BaseModel
 
 
 class UserRole(BaseModel):

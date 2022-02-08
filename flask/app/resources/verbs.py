@@ -1,10 +1,10 @@
 from flask_restplus import Namespace, reqparse, Resource
 
-from core.mongo_db import (
+from app.core.mongo_db import (
     get_all_unique_field_values,
     gen_restrict_access_query,
 )
-from core.response import (
+from app.core.response import (
     return_500_for_sever_error,
     return_401_for_no_auth,
     CustomeResponse,

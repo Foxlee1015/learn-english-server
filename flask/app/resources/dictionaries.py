@@ -1,12 +1,12 @@
 from flask_restplus import Namespace, Resource
 
-from core.mongo_db import (
+from app.core.mongo_db import (
     mongo,
     gen_not_include_query,
     gen_return_fields_query,
     stringify_docs,
 )
-from core.response import (
+from app.core.response import (
     return_500_for_sever_error,
     CustomeResponse,
 )

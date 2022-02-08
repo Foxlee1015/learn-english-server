@@ -2,16 +2,16 @@ import traceback
 from bson import ObjectId
 
 from flask_restplus import Namespace, reqparse, Resource
-from core.response import (
+from app.core.response import (
     return_500_for_sever_error,
     return_401_for_no_auth,
     gen_dupilcate_keys_message,
     CustomeResponse,
 )
 
-from core.models import User as UserModel, UserRole as UserRoleModel
-from core.database import db, get_db_session
-from core.mongo_db import mongo, gen_user_like_query, stringify_docs, gen_in_query
+from app.core.models import User as UserModel, UserRole as UserRoleModel
+from app.core.database import db, get_db_session
+from app.core.mongo_db import mongo, gen_user_like_query, stringify_docs, gen_in_query
 
 
 api = Namespace("users", description="Users related operations")

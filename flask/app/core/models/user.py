@@ -1,15 +1,11 @@
 import os
 from datetime import datetime
-from dotenv import load_dotenv
+
 from sqlalchemy import event
 from werkzeug.security import generate_password_hash, check_password_hash
-from core.database import db
-from core.models.base import BaseModel
 
-APP_ROOT = os.path.join(os.path.dirname(__file__), "..")
-dotenv_path = os.path.join(APP_ROOT, ".env")
-load_dotenv(dotenv_path)
-
+from app.core.database import db
+from app.core.models.base import BaseModel
 
 class User(BaseModel):
     __tablename__ = "user"
