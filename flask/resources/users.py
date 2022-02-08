@@ -10,7 +10,7 @@ from core.response import (
 )
 
 from core.models import User as UserModel, UserRole as UserRoleModel
-from core.database import db
+from core.database import db, get_db_session
 from core.mongo_db import mongo, gen_user_like_query, stringify_docs, gen_in_query
 
 
@@ -129,6 +129,30 @@ def update_user(user, arg) -> None:
     db.session.commit()
 
 
+def delete_not_existing_users_likes():
+    db_scoped_session = get_db_session()
+    db_session = db_scoped_session()
+
+    idiom_like_users = mongo.db.user_like_idiom.distinct("userId", {})
+    for user_id in idiom_like_users:
+        try:
+            db_session.query(UserModel).filter_by(id=user_id).one()
+        except:
+            mongo.db.user_like_idiom.delete_many({"userId": user_id})
+    
+    phrasal_verb_like_users = mongo.db.user_like_phrasal_verb.distinct("userId", {}) 
+    for user_id in phrasal_verb_like_users:
+        try:
+            db_session.query(UserModel).filter_by(id=user_id).one()
+        except:
+            mongo.db.user_like_phrasal_verb.delete_many({"userId": user_id})
+
+
+def delete_user_likes(user_id):
+    mongo.db.user_like_idiom.delete_many({"userId": user_id})
+    mongo.db.user_like_phrasal_verb.delete_many({"userId": user_id})
+
+
 parser_create = reqparse.RequestParser()
 parser_create.add_argument(
     "name", type=str, required=True, location="form", help="Unique user name"
@@ -205,13 +229,14 @@ class User(Resource, CustomeResponse):
     @return_401_for_no_auth
     @return_500_for_sever_error
     def delete(self, id_, **kwargs):
-        """Delete all users
+        """Delete a user
 
-        NOTE: Only for admin users or user owner
+        NOTE: Only for admin
         """
         if get_user_by_id(id_):
             if kwargs["auth_user"].is_admin():
                 delete_user(id_)
+                delete_user_likes(id_)
                 return self.send(response_type="NO_CONTENT")
             return self.send(response_type="FORBIDDEN")
         return self.send(response_type="NOT_FOUND")

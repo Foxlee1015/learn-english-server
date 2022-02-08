@@ -10,7 +10,9 @@ db = SQLAlchemy(model_class=Base)
 metadata = Base.metadata
 
 
-def get_db_session(db_url):
-    engine = create_engine(db_url)
+def get_db_session():
+    from app import config
+
+    engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
     session_factory = sessionmaker(bind=engine)
     return scoped_session(session_factory)
