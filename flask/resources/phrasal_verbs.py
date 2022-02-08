@@ -437,7 +437,7 @@ class PhrasalVerbLikes(Resource, CustomeResponse):
     @return_500_for_sever_error
     def post(self, **kwargs):
         args = parser_like_create.parse_args()
-        result = update_user_like_phrasal_verb(kwargs["user_info"]["id"], args)
+        result = update_user_like_phrasal_verb(kwargs["auth_user"]["id"], args)
         if result:
             return self.send(response_type="SUCCESS")
         else:
