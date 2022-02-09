@@ -30,17 +30,18 @@ services:
   mysql:
     image: mysql:5.7
     restart: always
-    command: --default-authentication-plugin=mysql_native_password --lower_case_table_names=1
     container_name: "${MYSQL}"
     ports:
-      - "${MYSQL_PORT}:3306"
+      - "${MYSQL_EXTERNAL_PORT}:${MYSQL_PORT}" # External port is used for remote access  
     environment:
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD}
       - TZ=Asia/Seoul
     command:
+      - --lower_case_table_names=1
+      - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
+      - --collation-server=utf7mb4_unicode_ci
     volumes:
       - ./mysql/data:/var/lib/mysql
 
