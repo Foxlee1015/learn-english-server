@@ -26,7 +26,8 @@ class ProductionConfig(Config):
     ENV = "production"
     HOST = os.getenv("APP_HOST_PROD")
     PORT = os.getenv("APP_PORT_PROD")
-    SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI_PROD")
+    db_url = f'mysql+pymysql://{os.getenv("MYSQL_USER")}:{os.getenv("MYSQL_PASSWORD")}@{os.getenv("MYSQL")}:{os.getenv("MYSQL_PORT")}/{os.getenv("MYSQL_DATABASE")}'
+    SQLALCHEMY_DATABASE_URI = db_url
     MONGO_URI = os.getenv("MONGO_DB_URI_PROD")
     REDIS_URL = f'redis://:{os.getenv("REDIS_PASSWORD")}@{os.getenv("REDIS")}:{os.getenv("REDIS_PORT")}/0'
 
