@@ -27,14 +27,14 @@ def init_settings():
 def background_task():
     update_unique_particles_job()
 
-
 def set_db(app):
     with app.app_context():
         from app.core.models import user, user_role
-
-        db.create_all()
-        db.session.commit()
-
+        try:
+            result = db.create_all()
+            db.session.commit()
+        except:
+            pass
 
 def set_mongodb_indexes():
     print("set mongodb indexes")
@@ -56,6 +56,7 @@ def create_app(config_name):
 
     CORS(app, resources={r"/api/*": {"origins": "*"}})
     db.init_app(app)
+    set_db(app)
     redis_client.init_app(app)
     from app.resources import blueprint as api
     app.register_blueprint(api, url_prefix="/api")
