@@ -12,11 +12,17 @@
   * 유저 구동사 좋아요 저장
 * Redis
   * 유저 세션 저장
+* MySQL
+  * 유저, 유저 롤 데이터
+  * Crontab - mysql dump로 데이터 백업 및 복구 쉘 스크립트 (mysql/backup.sh, restore.sh)
 * Docker-compose
-  * flask app(gunicorn) - redis - nginx
+  * flask app(gunicorn) - redis - nginx - mysql
 * Pytest 
   * 각 엔드포인트 테스트(리소스 생성,추가,수정,삭제)
   * 헬퍼 함수 테스트
   * 픽스쳐 - API context(test), TEST DB
 * [크롤러 스크립트](https://github.com/daehan0226/learn-english-crawler)
   * aiohttp 를 활용한 코루틴 함수로 데이터 수집 시간 단축
+
+### 현재 이슈상황
+* 독립적으로 돌아가던 MongoDB 도커 컨테이너 옮기는 중 기존 데이터가 볼륨 설정되어 있어서 연결은 되지만 MongDB에서 복구를 못하고 있음 - 
