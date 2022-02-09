@@ -7,3 +7,4 @@ flask/__pychche__/*
 *.logs
 *.log
 mysql/data/*
+mysql/backup/*
