@@ -12,8 +12,11 @@
   * 유저 구동사 좋아요 저장
 * Redis
   * 유저 세션 저장
+* MySQL
+  * 유저, 유저 롤 데이터
+  * Crontab - mysql dump로 데이터 백업 및 복구 쉘 스크립트 (mysql/backup.sh, restore.sh)
 * Docker-compose
-  * flask app(gunicorn) - redis - nginx
+  * flask app(gunicorn) - redis - nginx - mysql
 * Pytest 
   * 각 엔드포인트 테스트(리소스 생성,추가,수정,삭제)
   * 헬퍼 함수 테스트
