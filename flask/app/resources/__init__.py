@@ -10,7 +10,7 @@ from .verbs import api as verbs
 from .particles import api as particles
 from .dictionaries import api as dictionaries
 
-blueprint = Blueprint("v1", __name__)
+blueprint = Blueprint("api_v1", __name__)
 api = Api(blueprint, title="Learn English API", version="1.0", description="")
 
 api.add_namespace(phrasal_verbs)
