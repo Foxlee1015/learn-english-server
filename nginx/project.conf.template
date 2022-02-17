@@ -2,7 +2,7 @@ server {
 
     listen 80;
     location / {
-        proxy_pass http://learn_english_api:33201;
+        proxy_pass http://${FLASK}:${FLASK_PORT};
 
         # Do not change this
         proxy_set_header Host $host;
@@ -11,7 +11,7 @@ server {
     }
 
     location /swaggerui/ {
-        proxy_pass http://learn_english_api:33201/swaggerui/;
+        proxy_pass http://${FLASK}:${FLASK_PORT}/swaggerui/;
         proxy_set_header  Host $host;
         proxy_set_header  X-Real-IP $remote_addr;
         proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
